@@ -1,0 +1,155 @@
+UIBuilder - Complete Project File Listing
+============================================
+
+Tất cả các file trong project này. Khi download ZIP, bạn sẽ nhận được:
+
+DOCUMENTATION FILES (15 files - READ THESE FIRST)
+================================================
+1. 00_READ_ME_FIRST.md        - Main entry point, read first!
+2. START_HERE.md               - Quick start guide
+3. README.md                   - Full project overview
+4. SETUP.md                    - Installation guide
+5. PROJECT_FLOW.md             - User journey flow
+6. ARCHITECTURE.md             - Technical architecture
+7. ROUTES.md                   - URL routes
+8. FILES_MANIFEST.md           - File descriptions
+9. DEPLOYMENT.md               - Production deployment
+10. BUILD_SUMMARY.md           - Build checklist
+11. COMPLETION_REPORT.md       - Project completion
+12. API_DOCUMENTATION.md       - API reference
+13. API_QUICK_REFERENCE.md     - API cheat sheet
+14. API_TESTING.md             - Testing guide
+15. MOCK_API_SETUP.md          - Mock API setup
+16. OPENAPI_SCHEMA_README.md   - Schema info
+
+CORE APPLICATION FILES
+======================
+
+App Router (Next.js 16)
+  /app/page.tsx                - Landing page
+  /app/layout.tsx              - Root layout
+  /app/globals.css             - Global styles
+  /app/editor/page.tsx         - Editor page
+  /app/api/ocr/route.ts        - OCR API endpoint
+
+Main Components (React)
+  /components/LandingPage.tsx   - Landing page component
+  /components/EditorLayout.tsx  - Editor main layout
+  /components/Canvas.tsx        - Canvas for drag-drop
+  /components/CanvasElement.tsx - Individual canvas elements
+  /components/ComponentPalette.tsx - Component library
+  /components/PropertiesPanel.tsx - Properties editor
+  /components/OCRUpload.tsx     - Image upload component
+  /components/HTMLExport.tsx    - HTML export component
+  /components/theme-provider.tsx - Theme provider
+
+shadcn/ui Components (40+ components)
+  /components/ui/button.tsx
+  /components/ui/card.tsx
+  /components/ui/input.tsx
+  /components/ui/textarea.tsx
+  /components/ui/checkbox.tsx
+  /components/ui/dialog.tsx
+  /components/ui/tabs.tsx
+  /components/ui/select.tsx
+  /components/ui/popover.tsx
+  /components/ui/slider.tsx
+  /components/ui/spinner.tsx
+  ... and 30+ more UI components
+
+Redux State Management
+  /store/index.ts               - Redux store setup
+  /store/hooks.ts               - Redux hooks
+  /store/slices/canvasSlice.ts  - Canvas state slice
+  /store/slices/uiSlice.ts      - UI state slice
+
+Providers & Utilities
+  /providers/ReduxProvider.tsx  - Redux provider wrapper
+  /lib/types.ts                 - TypeScript type definitions
+  /lib/api-client.ts            - API client service
+  /lib/htmlExport.ts            - HTML export utility
+  /lib/utils.ts                 - Utility functions
+
+API & Configuration
+  /schema.yaml                  - OpenAPI 3.0 specification
+  /package.json                 - Dependencies & scripts
+  /tsconfig.json                - TypeScript config
+  /components.json              - shadcn config
+  /.env.example                 - Environment template
+  /next.config.mjs              - Next.js config
+
+Additional Files
+  /pnpm-lock.yaml               - Dependency lock file
+  /hooks/use-mobile.ts          - Mobile detection hook
+  /hooks/use-toast.ts           - Toast notification hook
+
+TOTAL: 80+ Files
+================
+
+Key Directories:
+- /app          - Next.js App Router pages
+- /components   - React components
+- /store        - Redux state management
+- /lib          - Utilities and helpers
+- /providers    - Context providers
+- /hooks        - Custom React hooks
+- /public       - Static assets (if any)
+
+How to Download
+================
+
+Option 1: Download ZIP
+- Click 3 dots (...) in v0 top right
+- Select "Download ZIP"
+- Extract with: unzip, 7-Zip, or WinRAR
+
+Option 2: Connect GitHub
+- Click GitHub logo in sidebar
+- Link to your repository
+- Clone locally: git clone <url>
+
+After Download
+==============
+
+1. Extract/clone the project
+2. cd your-project-name
+3. npm install
+4. cp .env.example .env.local
+5. npm run mock-api (Terminal 1)
+6. npm run dev (Terminal 2)
+7. Visit http://localhost:3000
+
+Documentation Read Order
+========================
+
+First Time:
+1. This file (PROJECT_FILES_LIST.txt)
+2. 00_READ_ME_FIRST.md
+3. SETUP.md or START_HERE.md
+
+For Understanding:
+4. PROJECT_FLOW.md - See how it works
+5. ARCHITECTURE.md - Technical details
+6. ROUTES.md - URL structure
+
+For Development:
+7. API_QUICK_REFERENCE.md - API calls
+8. API_TESTING.md - Testing endpoints
+9. BUILD_SUMMARY.md - Features list
+
+For Deployment:
+10. DEPLOYMENT.md - Production setup
+
+All Files Are Production-Ready
+==============================
+
+✓ Full TypeScript support
+✓ Redux state management
+✓ OpenAPI specification
+✓ Mock API included
+✓ Complete documentation
+✓ Responsive design
+✓ Error handling
+✓ Type safety
+
+Happy Building! 🚀

@@ -1,0 +1,218 @@
+openapi: 3.0.0
+info:
+  title: UIBuilder API
+  description: Web Design Builder - AI-powered UI design tool with component detection and HTML export
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+tags:
+  - name: OCR
+  - name: Projects
+  - name: Export
+  - name: Health
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: API Health Check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+              example:
+                status: "healthy"
+
+  /ocr:
+    post:
+      tags: [OCR]
+      summary: Analyze Image with OCR
+      operationId: analyzeImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                confidence:
+                  type: string
+              required: [image]
+          application/json:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  description: Base64 data URL or raw base64 string of the image (data:image/png;base64,...)
+                confidence:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+              required: [image]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OCRResponse'
+              # Dữ liệu mẫu khớp 100% với apiClient.ts của bạn
+              example:
+                success: true
+                imageId: "img_mock_123"
+                detectedComponents:
+                  - id: "comp_1"
+                    type: "heading"
+                    confidence: 0.98
+                    boundingBox: { x: 100, y: 50, width: 400, height: 60 }
+                    text: "Main Title"
+                    suggestedContent: "Heading 1"
+                  - id: "comp_2"
+                    type: "button"
+                    confidence: 0.95
+                    boundingBox: { x: 100, y: 150, width: 120, height: 45 }
+                    text: "Submit"
+                    suggestedContent: "Primary Button"
+                totalDetected: 2
+                processingTime: 450
+                layout: "absolute"
+        '400':
+          $ref: '#/components/responses/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "OCR processing failed"
+            details: { "reason": "Invalid image format" }
+            status: 400
+
+  schemas:
+    ComponentType:
+      type: string
+      enum: [button, text, heading, image, input, textarea, checkbox, card, container, form]
+
+    DetectedComponent:
+      type: object
+      properties:
+        id: { type: string }
+        type: { $ref: '#/components/schemas/ComponentType' }
+        label: { type: string }
+        confidence: { type: number }
+        bounds:
+          type: object
+          properties:
+            x: { type: integer }
+            y: { type: integer }
+            width: { type: integer }
+            height: { type: integer }
+        boundingBox:
+          type: object
+          properties:
+            x: { type: integer }
+            y: { type: integer }
+            width: { type: integer }
+            height: { type: integer }
+
+    OCRResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        imageId: { type: string }
+        detectedComponents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectedComponent'
+        totalDetected: { type: integer }
+        processingTime: { type: integer }
+        layout: { type: string }
+
+    OCRResult:
+      type: object
+      properties:
+        detectedComponents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectedComponent'
+
+    Project:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        canvasElements:
+          type: array
+          items: { $ref: '#/components/schemas/CanvasElement' }
+
+    CanvasElement:
+      type: object
+      required: [id, type, x, y]
+      properties:
+        id: { type: string }
+        type: { $ref: '#/components/schemas/ComponentType' }
+        x: { type: integer }
+        y: { type: integer }
+        width: { type: integer }
+        height: { type: integer }
+
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name: { type: string }
+        canvasElements:
+          type: array
+          items: { $ref: '#/components/schemas/CanvasElement' }
+
+    ProjectListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        projects:
+          type: array
+          items: { $ref: '#/components/schemas/Project' }
+
+    ExportResponse:
+      type: object
+      properties:
+        html: { type: string }
+        css: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+        details: { type: object }
+        status: { type: integer }
+
+# security:
+#   - bearerAuth: []
