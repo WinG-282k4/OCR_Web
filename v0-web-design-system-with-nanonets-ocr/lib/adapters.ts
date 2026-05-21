@@ -41,6 +41,7 @@ export function beComponentToFe(comp: BEComponent): CanvasComponent {
       alt: properties.alt,
       href: properties.href,
       variant: properties.variant,
+      html_content: properties.html_content,
     },
     events: {
       onClick: 'none',
@@ -96,6 +97,7 @@ export function feComponentToBe(comp: CanvasComponent): BEComponent {
       src: comp.attributes?.src || '',
       alt: comp.attributes?.alt || '',
       href: comp.attributes?.href || '',
+      html_content: comp.attributes?.html_content,
     },
     style: Object.fromEntries(
       Object.entries(restStyle).filter(([, v]) => v !== undefined && v !== '')
@@ -149,6 +151,7 @@ export function ocrComponentToFe(comp: any, index: number): CanvasComponent {
       alt: properties.alt || '',
       href: properties.href || '',
       variant: properties.variant || '',
+      html_content: properties.html_content || '',
     },
     events: { onClick: 'none' },
   };

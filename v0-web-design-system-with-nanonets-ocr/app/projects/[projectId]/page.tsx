@@ -7,11 +7,12 @@ import {
   setCurrentProject, setScreens, addScreen,
   removeScreen, setCurrentScreen, savingStart, savingSuccess, savingFailure,
 } from '@/store/slices/sessionSlice';
-import { loadComponents, clearCanvas } from '@/store/slices/canvasSlice';
+import { loadComponents, clearCanvas, updateComponent } from '@/store/slices/canvasSlice';
 import { projectsAPI, screensAPI, ocrAPI } from '@/lib/api-client';
 import { beScreenToCanvasState, feCanvasStateToBe, ocrComponentToFe } from '@/lib/adapters';
 import { generateTailwindHTML, downloadHTML } from '@/lib/htmlExport';
-import type { BEScreen } from '@/lib/types';
+import { htmlToCanvasComponents } from '@/lib/htmlParser';
+import type { BEScreen, CanvasComponent } from '@/lib/types';
 import {
   ArrowLeft, Upload, Plus, Loader2, Layers, Image as ImageIcon,
   Download, Code2, Trash2, Eye, RefreshCw, Save, X, Monitor, CheckCircle2,
@@ -104,7 +105,33 @@ export default function ProjectDetailPage() {
     if (!currentScreen) return;
     dispatch(savingStart());
     try {
-      const beComponents = feCanvasStateToBe(canvasState.components, canvasState.order);
+      let componentsToSave = canvasState.components;
+      let orderToSave = canvasState.order;
+
+      // If we are in html mode on a non-OCR screen, parse before saving
+      const hasOcrContainer = Object.values(canvasState.components).some(
+        (c) => c.attributes && 'html_content' in c.attributes
+      );
+      if (!hasOcrContainer && viewMode === 'html') {
+        try {
+          const parsed = htmlToCanvasComponents(generatedHTML);
+          if (parsed && parsed.length > 0) {
+            dispatch(loadComponents(parsed));
+            const compsMap: Record<string, CanvasComponent> = {};
+            const ordArr: string[] = [];
+            parsed.forEach((c) => {
+              compsMap[c.id] = c;
+              ordArr.push(c.id);
+            });
+            componentsToSave = compsMap;
+            orderToSave = ordArr;
+          }
+        } catch (e) {
+          console.error('Lỗi parse HTML khi lưu:', e);
+        }
+      }
+
+      const beComponents = feCanvasStateToBe(componentsToSave, orderToSave);
       const res = await screensAPI.updateComponents(
         projectId,
         currentScreen.id,
@@ -129,8 +156,50 @@ export default function ProjectDetailPage() {
 
   // ── Download HTML ────────────────────────────────────────────────────────
   function handleDownload() {
-    const html = generateTailwindHTML(canvasState.components, canvasState.order);
-    downloadHTML(canvasState.components, canvasState.order, `${currentScreen?.name || 'design'}.html`);
+    downloadHTML(generatedHTML, `${currentScreen?.name || 'design'}.html`);
+  }
+
+  // ── HTML Edit Handlers ───────────────────────────────────────────────────
+  function handleHTMLChange(newHTML: string) {
+    setGeneratedHTML(newHTML);
+
+    // Sync to Redux canvas state if it's an OCR screen containing html_content container
+    const ocrContainer = Object.values(canvasState.components).find(
+      (c) => c.attributes && 'html_content' in c.attributes
+    );
+    if (ocrContainer) {
+      dispatch(
+        updateComponent({
+          id: ocrContainer.id,
+          updates: {
+            attributes: {
+              ...ocrContainer.attributes,
+              html_content: newHTML,
+            },
+          },
+        })
+      );
+    }
+  }
+
+  function handleViewModeChange(mode: 'design' | 'preview' | 'html') {
+    if (viewMode === 'html' && mode === 'design') {
+      // Switching from HTML editor to Design view: parse if it's a non-OCR screen
+      const hasOcrContainer = Object.values(canvasState.components).some(
+        (c) => c.attributes && 'html_content' in c.attributes
+      );
+      if (!hasOcrContainer) {
+        try {
+          const parsed = htmlToCanvasComponents(generatedHTML);
+          if (parsed && parsed.length > 0) {
+            dispatch(loadComponents(parsed));
+          }
+        } catch (e) {
+          console.error('Lỗi parse HTML khi chuyển tab:', e);
+        }
+      }
+    }
+    setViewMode(mode);
   }
 
   // ── OCR Upload ───────────────────────────────────────────────────────────
@@ -359,11 +428,12 @@ export default function ProjectDetailPage() {
               screen={currentScreen}
               generatedHTML={generatedHTML}
               viewMode={viewMode}
-              onViewModeChange={setViewMode}
+              onViewModeChange={handleViewModeChange}
               onDownload={handleDownload}
               onSave={handleSave}
               isSaving={isSaving}
               onRefreshHTML={() => regenerateHTML()}
+              onHTMLChange={handleHTMLChange}
             />
           </div>
         )}
@@ -376,11 +446,12 @@ export default function ProjectDetailPage() {
             screen={currentScreen}
             generatedHTML={generatedHTML}
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={handleViewModeChange}
             onDownload={handleDownload}
             onSave={handleSave}
             isSaving={isSaving}
             onRefreshHTML={() => regenerateHTML()}
+            onHTMLChange={handleHTMLChange}
           />
         </div>
       )}
@@ -500,7 +571,7 @@ function ScreenCard({
 // ─── ScreenEditPanel Component ────────────────────────────────────────────────
 
 function ScreenEditPanel({
-  screen, generatedHTML, viewMode, onViewModeChange, onDownload, onSave, isSaving, onRefreshHTML,
+  screen, generatedHTML, viewMode, onViewModeChange, onDownload, onSave, isSaving, onRefreshHTML, onHTMLChange,
 }: {
   screen: BEScreen;
   generatedHTML: string;
@@ -510,6 +581,7 @@ function ScreenEditPanel({
   onSave: () => void;
   isSaving: boolean;
   onRefreshHTML: () => void;
+  onHTMLChange: (html: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -626,9 +698,12 @@ function ScreenEditPanel({
 
         {viewMode === 'html' && (
           <div className="w-full p-3 h-full">
-            <pre className="h-full overflow-auto bg-slate-900/80 border border-white/10 rounded-xl p-4 text-xs text-slate-300 font-mono leading-relaxed">
-              {generatedHTML || '<!-- Không có components -->'}
-            </pre>
+            <textarea
+              className="w-full h-full bg-slate-900/85 border border-white/10 rounded-xl p-4 text-xs text-slate-300 font-mono leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+              value={generatedHTML}
+              onChange={(e) => onHTMLChange(e.target.value)}
+              placeholder="<!-- Nhập mã HTML tại đây -->"
+            />
           </div>
         )}
       </div>

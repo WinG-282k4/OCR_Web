@@ -237,19 +237,33 @@ export function generateLayoutHTML(
 }
 
 /**
- * Download HTML as file
+ * Download HTML as file.
+ * Supports legacy downloadHTML(components, order, filename)
+ * and new downloadHTML(htmlString, filename)
  */
 export function downloadHTML(
-  components: Record<string, CanvasComponent>,
-  order: string[],
+  htmlOrComponents: string | Record<string, CanvasComponent>,
+  orderOrFilename: string[] | string = 'design.html',
   filename = 'design.html'
 ): void {
-  const html = generateLayoutHTML(components, order);
+  let html = '';
+  let finalFilename = 'design.html';
+
+  if (typeof htmlOrComponents === 'string') {
+    html = htmlOrComponents;
+    finalFilename = typeof orderOrFilename === 'string' ? orderOrFilename : 'design.html';
+  } else {
+    const components = htmlOrComponents;
+    const order = orderOrFilename as string[];
+    html = generateLayoutHTML(components, order);
+    finalFilename = filename;
+  }
+
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename;
+  a.download = finalFilename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
