@@ -180,12 +180,12 @@ export default function ComponentPalette() {
   };
 
   return (
-    <div className="w-80 flex flex-col h-full bg-white border-r border-slate-200 overflow-hidden">
+    <div className="w-full flex flex-col h-full bg-slate-950/40 backdrop-blur-md border-r border-white/10 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Components</h2>
-        <p className="text-xs text-slate-500 mt-1">
-          Drag and drop or click to add
+      <div className="px-5 py-4 border-b border-white/10">
+        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Components</h2>
+        <p className="text-xs text-slate-400 mt-1">
+          Kéo thả hoặc click để thêm
         </p>
       </div>
 
@@ -196,12 +196,12 @@ export default function ComponentPalette() {
             <button
               key={config.type}
               onClick={() => handleAddComponent(config)}
-              className="flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all group"
+              className="flex flex-col items-center justify-center p-3 rounded-xl border border-white/5 bg-white/5 hover:border-indigo-500/50 hover:bg-indigo-600/10 transition-all group cursor-pointer"
             >
-              <div className="text-slate-600 group-hover:text-blue-600 mb-1">
+              <div className="text-slate-400 group-hover:text-indigo-400 mb-1.5 transition-colors">
                 {config.icon}
               </div>
-              <span className="text-xs font-medium text-slate-700 text-center group-hover:text-blue-700">
+              <span className="text-[11px] font-medium text-slate-300 text-center group-hover:text-white transition-colors">
                 {config.label}
               </span>
             </button>
