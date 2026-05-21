@@ -141,8 +141,17 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
 
       // ── Image ────────────────────────────────────────────────────────────────
       if (tag === 'img') {
-        const src = child.getAttribute('src') || '';
+        let src = child.getAttribute('src') || '';
         const alt = child.getAttribute('alt') || 'Image';
+        
+        // Prefix relative media URLs with Backend Origin
+        if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+          const apiBase = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) || 'http://localhost:8000/api';
+          const origin = apiBase.replace('/api', '');
+          const path = src.startsWith('/media/') ? src : `/media/${src}`;
+          src = `${origin}${path}`;
+        }
+        
         const comp: CanvasComponent = {
           id: uid(),
           type: 'image',

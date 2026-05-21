@@ -78,6 +78,10 @@ class OCRAnalysisViewSet(viewsets.ModelViewSet):
             
             # Auto-create screen if requested
             if auto_create_screen and result.get('status') == 'completed':
+                from django.db.models import Max
+                max_order = Screen.objects.filter(project=project).aggregate(Max('order'))['order__max']
+                order = (max_order + 1) if max_order is not None else 0
+
                 screen = Screen.objects.create(
                     project=project,
                     name=screen_name,
@@ -85,6 +89,7 @@ class OCRAnalysisViewSet(viewsets.ModelViewSet):
                     components=result.get('normalized_components', []),
                     width=result.get('width', 1920),
                     height=result.get('height', 1080),
+                    order=order,
                     created_from_ocr=True,
                     ocr_analysis=ocr_analysis,
                     thumbnail=ocr_analysis.image,
@@ -94,6 +99,7 @@ class OCRAnalysisViewSet(viewsets.ModelViewSet):
                 ScreenVersion.objects.create(
                     screen=screen,
                     version_number=1,
+                    is_base_version=True,
                     components=screen.components,
                     description="Auto-generated from OCR",
                     created_by=request.user
@@ -185,6 +191,11 @@ class OCRAnalysisViewSet(viewsets.ModelViewSet):
                     if comp.get('confidence', 0) >= confidence_filter
                 ]
         
+        # Calculate dynamic screen order to prevent UNIQUE constraint failed
+        from django.db.models import Max
+        max_order = Screen.objects.filter(project=project).aggregate(Max('order'))['order__max']
+        order = (max_order + 1) if max_order is not None else 0
+
         # Create screen
         screen = Screen.objects.create(
             project=project,
@@ -192,13 +203,17 @@ class OCRAnalysisViewSet(viewsets.ModelViewSet):
             description=screen_description or f"Created from OCR analysis",
             components=components,
             width=1920,  # Default width
-            height=1080  # Default height
+            height=1080, # Default height
+            order=order,
+            created_from_ocr=True,
+            ocr_analysis=ocr_analysis
         )
         
-        # Create initial version
+        # Create initial version (BASE snapshot)
         ScreenVersion.objects.create(
             screen=screen,
             version_number=1,
+            is_base_version=True,
             components=components,
             description="Created from OCR analysis",
             created_by=request.user

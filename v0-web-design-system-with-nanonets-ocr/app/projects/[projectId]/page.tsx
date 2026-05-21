@@ -63,13 +63,62 @@ export default function ProjectDetailPage() {
   }
 
   // ── Select screen → load into canvas ────────────────────────────────────
-  function selectScreen(screen: BEScreen) {
+  async function selectScreen(screen: BEScreen) {
     dispatch(setCurrentScreen(screen));
+
+    // Neu screen co html_content (tu OCR), parse no ra cac component granular
+    const storedHTML = extractHTMLContent(screen);
+    if (storedHTML) {
+      try {
+        const parsed = htmlToCanvasComponents(storedHTML);
+        if (parsed && parsed.length > 0) {
+          const compsMap: Record<string, CanvasComponent> = {};
+          const ordArr: string[] = [];
+          parsed.forEach((c) => {
+            compsMap[c.id] = c;
+            ordArr.push(c.id);
+          });
+          const beComponents = feCanvasStateToBe(compsMap, ordArr);
+
+          // Create an upgraded screen object that contains these granular components
+          // instead of the single fallback container.
+          const upgradedScreen: BEScreen = {
+            ...screen,
+            components: beComponents,
+          };
+
+          dispatch(setCurrentScreen(upgradedScreen));
+          dispatch(loadComponents(parsed));
+          
+          // Regenerate clean HTML from the newly upgraded canvas state
+          const { components: regeneratedComps, order: regeneratedOrder } = beScreenToCanvasState(upgradedScreen);
+          regenerateHTML(regeneratedComps, regeneratedOrder);
+
+          // Auto-save the upgraded components to backend so it's persisted permanently
+          try {
+            await screensAPI.updateComponents(
+              projectId,
+              screen.id,
+              beComponents,
+              'Auto-upgrade from OCR fallback'
+            );
+            // Refresh screen list so component count updates
+            const screensRes = await screensAPI.list(projectId);
+            dispatch(setScreens(screensRes.results));
+          } catch (saveError) {
+            console.error('Error auto-saving upgraded components:', saveError);
+          }
+          return;
+        }
+      } catch (e) {
+        console.error('Lỗi tự động phân tích OCR HTML:', e);
+      }
+    }
+
+    // Standard flow for normal screens:
     const { components, order } = beScreenToCanvasState(screen);
     dispatch(loadComponents(Object.values(components)));
 
-    // Neu screen co html_content (tu OCR), dung no lam Preview/HTML
-    const storedHTML = extractHTMLContent(screen);
     if (storedHTML) {
       setGeneratedHTML(storedHTML);
     } else {
@@ -502,7 +551,11 @@ function ScreenCard({
   const thumbnailUrl = screen.thumbnail
     ? screen.thumbnail.startsWith('http')
       ? screen.thumbnail
-      : `${API_ORIGIN}/media/${screen.thumbnail}`
+      : (() => {
+          const path = screen.thumbnail.startsWith('/') ? screen.thumbnail : `/${screen.thumbnail}`;
+          const finalPath = path.startsWith('/media/') ? path : `/media${path}`;
+          return `${API_ORIGIN}${finalPath}`;
+        })()
     : null;
 
   return (
@@ -683,7 +736,12 @@ function ScreenEditPanel({
           <div className="w-full h-full p-3 overflow-auto">
             {generatedHTML ? (
               <iframe
-                srcDoc={generatedHTML}
+                srcDoc={(() => {
+                  if (!generatedHTML) return '';
+                  const apiBase = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) || 'http://localhost:8000/api';
+                  const origin = apiBase.replace('/api', '');
+                  return generatedHTML.replace(/(src=["'])\/media\//g, `$1${origin}/media/`);
+                })()}
                 className="w-full h-full rounded-xl border border-white/10 bg-white"
                 title="Preview"
                 sandbox="allow-scripts"

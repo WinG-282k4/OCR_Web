@@ -66,7 +66,21 @@ export default function CanvasElement({ component, isSelected }: Props) {
           dispatch(selectComponent(id));
         }}
       >
-        {type === "button" && <button className="w-full h-full bg-blue-600 text-white rounded">{textToDisplay}</button>}
+        {type === "button" && (
+          <button 
+            className="w-full h-full" 
+            style={{ 
+              backgroundColor: style.backgroundColor || "#2563eb", 
+              color: style.color || "#ffffff",
+              borderRadius: style.borderRadius || "0.25rem",
+              fontSize: style.fontSize || undefined,
+              fontWeight: style.fontWeight || undefined,
+              border: style.border || undefined
+            }}
+          >
+            {textToDisplay}
+          </button>
+        )}
         {type === "input" && <input className="w-full h-full border px-2 rounded" placeholder={placeholder} readOnly />}
         {type === "image" && (
           <img 
@@ -75,8 +89,32 @@ export default function CanvasElement({ component, isSelected }: Props) {
             className="w-full h-full object-cover rounded" 
           />
         )}
-        {type === "heading" && <h2 className="w-full font-bold text-xl">{textToDisplay}</h2>}
-        {type === "text" && <p className="w-full">{textToDisplay}</p>}
+        {type === "heading" && (
+          <h2 
+            className="w-full" 
+            style={{ 
+              fontSize: style.fontSize || "1.25rem", 
+              fontWeight: style.fontWeight || "bold",
+              color: style.color || undefined,
+              textAlign: style.textAlign as any
+            }}
+          >
+            {textToDisplay}
+          </h2>
+        )}
+        {type === "text" && (
+          <p 
+            className="w-full" 
+            style={{ 
+              fontSize: style.fontSize || undefined, 
+              fontWeight: style.fontWeight || undefined,
+              color: style.color || undefined,
+              textAlign: style.textAlign as any
+            }}
+          >
+            {textToDisplay}
+          </p>
+        )}
         {["card", "container"].includes(type) && (
           <div className="w-full h-full border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs">
             {textToDisplay}

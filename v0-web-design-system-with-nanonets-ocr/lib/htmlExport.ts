@@ -28,35 +28,15 @@ function resolveVariant(variant?: string): string {
  */
 function styleToInline(style: ComponentStyle, excludeKeys: string[] = []): string {
   const props: string[] = [];
-  const skip = new Set(['width', 'height', ...excludeKeys]);
+  const skip = new Set(excludeKeys);
 
   for (const [key, value] of Object.entries(style)) {
     if (!value || skip.has(key)) continue;
-    // Special handling for custom colors (not easily expressible as Tailwind)
-    if (key === 'backgroundColor' && value.startsWith('#')) {
-      props.push(`background-color: ${value}`);
-      continue;
-    }
-    if (key === 'color' && value.startsWith('#')) {
-      props.push(`color: ${value}`);
-      continue;
-    }
-    // Skip common props handled by Tailwind class
-    if (['backgroundColor', 'color', 'borderRadius', 'fontSize', 'fontWeight', 'padding', 'margin'].includes(key)) {
-      continue;
-    }
     const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
     props.push(`${cssKey}: ${value}`);
   }
 
   return props.length > 0 ? ` style="${props.join('; ')}"` : '';
-}
-
-function getSizeStyle(style: ComponentStyle): string {
-  const parts: string[] = [];
-  if (style.width) parts.push(`width: ${style.width}`);
-  if (style.height) parts.push(`height: ${style.height}`);
-  return parts.length > 0 ? ` style="${parts.join('; ')}"` : '';
 }
 
 /**
@@ -67,24 +47,23 @@ function componentToHtml(
   allComponents: Record<string, CanvasComponent>
 ): string {
   const { type, content, label, placeholder, style, attributes } = component;
-  const sizeStyle = getSizeStyle(style);
   const inlineStyle = styleToInline(style);
   const variant = attributes?.variant;
 
   switch (type) {
     case 'button':
       return `<button
-        class="inline-flex items-center justify-center px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 cursor-pointer ${resolveVariant(variant)}"${sizeStyle}>
+        class="inline-flex items-center justify-center px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 cursor-pointer ${resolveVariant(variant)}"${inlineStyle}>
         ${content || label || 'Click me'}
       </button>`;
 
     case 'text':
-      return `<p class="text-gray-700 leading-relaxed"${inlineStyle}${sizeStyle}>
+      return `<p class="text-gray-700 leading-relaxed"${inlineStyle}>
         ${content || label || 'Your text here'}
       </p>`;
 
     case 'heading':
-      return `<h2 class="text-2xl font-bold text-gray-900 leading-tight"${inlineStyle}${sizeStyle}>
+      return `<h2 class="text-2xl font-bold text-gray-900 leading-tight"${inlineStyle}>
         ${content || label || 'Heading'}
       </h2>`;
 
@@ -97,13 +76,13 @@ function componentToHtml(
       return `<input
         type="text"
         placeholder="${placeholder || label || 'Enter text...'}"
-        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"${sizeStyle} />`;
+        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"${inlineStyle} />`;
 
     case 'textarea':
       return `<textarea
         placeholder="${placeholder || label || 'Enter text...'}"
         rows="4"
-        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"${sizeStyle}></textarea>`;
+        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"${inlineStyle}></textarea>`;
 
     case 'checkbox':
       return `<label class="flex items-center gap-2.5 cursor-pointer">
@@ -115,7 +94,7 @@ function componentToHtml(
       return `<img
         src="${attributes?.src || 'https://placehold.co/400x300?text=Image'}"
         alt="${attributes?.alt || label || 'Image'}"
-        class="rounded-lg object-cover max-w-full"${sizeStyle} />`;
+        class="rounded-lg object-cover max-w-full"${inlineStyle} />`;
 
     case 'link':
       return `<a
@@ -131,7 +110,7 @@ function componentToHtml(
           return child ? componentToHtml(child, allComponents) : '';
         })
         .join('\n        ');
-      return `<div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6"${inlineStyle}${sizeStyle}>
+      return `<div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6"${inlineStyle}>
         ${children || `<p class="text-gray-400 text-sm">Card content</p>`}
       </div>`;
     }
@@ -145,13 +124,13 @@ function componentToHtml(
           return child ? componentToHtml(child, allComponents) : '';
         })
         .join('\n        ');
-      return `<${tag} class="flex flex-col gap-4"${inlineStyle}${sizeStyle}>
+      return `<${tag} class="flex flex-col gap-4"${inlineStyle}>
         ${children || ''}
       </${tag}>`;
     }
 
     default:
-      return `<div class="bg-gray-100 rounded-lg p-4 text-gray-600 text-sm"${inlineStyle}${sizeStyle}>
+      return `<div class="bg-gray-100 rounded-lg p-4 text-gray-600 text-sm"${inlineStyle}>
         ${content || label || type}
       </div>`;
   }

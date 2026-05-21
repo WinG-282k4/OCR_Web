@@ -210,6 +210,11 @@ class ScreenViewSet(viewsets.ModelViewSet):
         new_name = serializer.validated_data['new_name']
         copy_versions = serializer.validated_data.get('copy_versions', False)
         
+        # Calculate dynamic screen order at the end of the project to prevent UNIQUE constraint failed
+        from django.db.models import Max
+        max_order = Screen.objects.filter(project=original_screen.project).aggregate(Max('order'))['order__max']
+        order = (max_order + 1) if max_order is not None else 0
+
         # Create new screen
         new_screen = Screen.objects.create(
             project=original_screen.project,
@@ -218,7 +223,7 @@ class ScreenViewSet(viewsets.ModelViewSet):
             width=original_screen.width,
             height=original_screen.height,
             components=original_screen.components,
-            order=original_screen.order + 1
+            order=order
         )
         
         # Copy versions if requested
@@ -262,31 +267,66 @@ class ScreenViewSet(viewsets.ModelViewSet):
         POST /api/projects/{project_id}/screens/{id}/reorder/
         Body: { "new_order": 3 }
         """
-        screen = self.get_object()
-        new_order = request.data.get('new_order')
+        from django.db import transaction
+        from django.db.models import Min
         
-        if new_order is None:
+        screen = self.get_object()
+        new_order_raw = request.data.get('new_order')
+        
+        if new_order_raw is None:
             return Response({
                 'error': 'new_order is required'
             }, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            new_order = int(new_order_raw)
+        except (ValueError, TypeError):
+            return Response({
+                'error': 'new_order must be an integer'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         old_order = screen.order
-        screen.order = new_order
-        screen.save()
-        
-        # Reorder other screens
-        if new_order < old_order:
-            Screen.objects.filter(
-                project=screen.project,
-                order__gte=new_order,
-                order__lt=old_order
-            ).exclude(id=screen.id).update(order=models.F('order') + 1)
-        else:
-            Screen.objects.filter(
-                project=screen.project,
-                order__gt=old_order,
-                order__lte=new_order
-            ).exclude(id=screen.id).update(order=models.F('order') - 1)
+        if old_order == new_order:
+            return Response({
+                'message': 'Screen order unchanged'
+            }, status=status.HTTP_200_OK)
+            
+        with transaction.atomic():
+            # 1. Assign a temporary vacant order value that is guaranteed not to conflict.
+            # We query the minimum order and subtract 1.
+            min_order = Screen.objects.filter(project=screen.project).aggregate(Min('order'))['order__min']
+            temp_order = (min_order - 1) if min_order is not None else -1
+            
+            screen.order = temp_order
+            screen.save()
+            
+            # 2. Shift other screens' orders safely without intermediate clashing
+            if new_order < old_order:
+                # Shifting screens UP (+1): update in descending order (highest order first)
+                other_screens = Screen.objects.filter(
+                    project=screen.project,
+                    order__gte=new_order,
+                    order__lt=old_order
+                ).exclude(id=screen.id).order_by('-order')
+                
+                for s in other_screens:
+                    s.order += 1
+                    s.save()
+            else:
+                # Shifting screens DOWN (-1): update in ascending order (lowest order first)
+                other_screens = Screen.objects.filter(
+                    project=screen.project,
+                    order__gt=old_order,
+                    order__lte=new_order
+                ).exclude(id=screen.id).order_by('order')
+                
+                for s in other_screens:
+                    s.order -= 1
+                    s.save()
+            
+            # 3. Apply the final new_order safely
+            screen.order = new_order
+            screen.save()
         
         return Response({
             'message': 'Screen reordered successfully'

@@ -37,7 +37,16 @@ export function beComponentToFe(comp: BEComponent): CanvasComponent {
       ...style,
     },
     attributes: {
-      src: properties.src,
+      src: (() => {
+        let src = properties.src || '';
+        if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+          const apiBase = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) || 'http://localhost:8000/api';
+          const origin = apiBase.replace('/api', '');
+          const path = src.startsWith('/media/') ? src : `/media/${src}`;
+          return `${origin}${path}`;
+        }
+        return src;
+      })(),
       alt: properties.alt,
       href: properties.href,
       variant: properties.variant,
