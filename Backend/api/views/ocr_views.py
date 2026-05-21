@@ -84,7 +84,10 @@ class OCRAnalysisViewSet(viewsets.ModelViewSet):
                     description=f"Auto-generated from OCR analysis",
                     components=result.get('normalized_components', []),
                     width=result.get('width', 1920),
-                    height=result.get('height', 1080)
+                    height=result.get('height', 1080),
+                    created_from_ocr=True,
+                    ocr_analysis=ocr_analysis,
+                    thumbnail=ocr_analysis.image,
                 )
                 
                 # Create initial version

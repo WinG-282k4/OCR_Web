@@ -129,6 +129,7 @@ Project (Container)
 
 ---
 
+<<<<<<< HEAD
 ## 🗄️ Database Schema (Overview)
 
 > **Chi tiết đầy đủ xem trực tiếp trong code:**  
@@ -153,6 +154,168 @@ User (1) ──────< (N) ProjectMember >──────< (1) Project
                      │                         └──────< (N) OCRAnalysis
                      │
                      └─ Roles: owner | editor | viewer
+=======
+## 🗄️ Database Schema
+
+### 1. **User Model** (Django built-in, extended)
+
+User account với authentication.
+
+```python
+from django.contrib.auth.models import AbstractUser
+
+class User(AbstractUser):
+    """Extended Django User model"""
+
+    id = UUID (primary key)
+    email = EmailField (unique, required)
+    username = CharField (unique, optional - dùng email làm identifier)
+
+    # Profile info
+    first_name = CharField
+    last_name = CharField
+    avatar = ImageField (optional)
+    bio = TextField (optional)
+
+    # Settings
+    is_active = Boolean (default True)
+    is_staff = Boolean (for admin)
+    is_superuser = Boolean (for admin)
+
+    date_joined = DateTime
+    last_login = DateTime
+```
+
+**Example Data:**
+
+```json
+{
+  "id": "user-uuid-1",
+  "email": "john@example.com",
+  "username": "john@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "avatar": "/media/avatars/john.jpg",
+  "bio": "UI/UX Designer",
+  "is_active": true,
+  "date_joined": "2026-03-01T10:00:00Z"
+}
+```
+
+---
+
+### 2. **ProjectMember Model** (Collaboration - Many-to-Many)
+
+Quản lý nhiều user trong một project với roles.
+
+```python
+class ProjectMember(models.Model):
+    """
+    Link giữa User và Project với role
+    Cho phép collaboration - nhiều users làm chung 1 project
+    """
+
+    ROLE_CHOICES = [
+        ('owner', 'Owner'),       # Full control, delete project
+        ('editor', 'Editor'),     # Edit screens, components
+        ('viewer', 'Viewer'),     # View only, export
+    ]
+
+    id = UUID (primary key)
+    project = ForeignKey(Project)
+    user = ForeignKey(User)
+    role = CharField (choices: owner|editor|viewer)
+
+    # Permissions
+    can_edit = Boolean (auto based on role)
+    can_delete = Boolean (auto based on role)
+    can_invite = Boolean (auto based on role)
+
+    # Metadata
+    invited_by = ForeignKey(User, optional)
+    joined_at = DateTime
+    last_activity = DateTime
+
+    unique_together = (project, user)
+```
+
+**Role Permissions:**
+| Permission | Owner | Editor | Viewer |
+|------------|-------|--------|--------|
+| View project | ✅ | ✅ | ✅ |
+| Edit screens | ✅ | ✅ | ❌ |
+| Delete screens | ✅ | ✅ | ❌ |
+| Upload OCR | ✅ | ✅ | ❌ |
+| Export | ✅ | ✅ | ✅ |
+| Invite members | ✅ | ❌ | ❌ |
+| Change roles | ✅ | ❌ | ❌ |
+| Delete project | ✅ | ❌ | ❌ |
+
+**Example Data:**
+
+```json
+{
+  "id": "member-uuid-1",
+  "project_id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": "user-uuid-1",
+  "role": "owner",
+  "can_edit": true,
+  "can_delete": true,
+  "can_invite": true,
+  "invited_by": null,
+  "joined_at": "2026-03-02T10:00:00Z",
+  "last_activity": "2026-03-02T11:30:00Z"
+}
+```
+
+---
+
+### 3. **Project Model**
+
+Container chính chứa nhiều screens.
+
+```python
+class Project(models.Model):
+    id = UUID (primary key)
+
+    # Owner & Members (Collaboration)
+    owner = ForeignKey(User)  # Creator của project
+    # members via ProjectMember model (many-to-many)
+
+    name = CharField(max 200)
+    description = TextField (optional)
+
+    # Theme chung cho toàn project
+    theme = JSONField
+    # {
+    #   "primaryColor": "#0070f3",
+    #   "fontFamily": "Inter, sans-serif",
+    #   "spacing": "8px"
+    # }
+
+    thumbnail = ImageField (optional)
+    tags = JSONField (list)
+
+    created_at = DateTime
+    updated_at = DateTime
+```
+
+**Example Data:**
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "E-Commerce Website",
+  "description": "Full website with home, product, checkout pages",
+  "theme": {
+    "primaryColor": "#0070f3",
+    "secondaryColor": "#ff0080",
+    "fontFamily": "Inter, sans-serif"
+  },
+  "tags": ["e-commerce", "responsive"],
+  "created_at": "2026-03-02T10:00:00Z"
+}
+>>>>>>> origin/main
 ```
 
 ---
@@ -172,6 +335,7 @@ class Screen(models.Model):
     order = IntegerField  # Thứ tự sắp xếp: 0, 1, 2...
 
     # Canvas settings
+<<<<<<< HEAD
     width = IntegerField (default 1920)
     height = IntegerField (default 1080)
     background_color = CharField (default "#ffffff")
@@ -191,6 +355,36 @@ class Screen(models.Model):
     #     }
     #   }
     # ]
+=======
+    canvas_width = IntegerField (default 1200)
+    canvas_height = IntegerField (default 800)
+    background_color = CharField (default "#ffffff")
+    background_image = ImageField (optional)
+
+    # ⭐ UI Components (JSON Dictionary)
+    components = JSONField
+    # {
+    #   "comp-uuid-1": {
+    #     "id": "comp-uuid-1",
+    #     "type": "button",
+    #     "label": "Submit Button",
+    #     "content": "Submit",
+    #     "x": 100,
+    #     "y": 200,
+    #     "style": {
+    #       "width": "120px",
+    #       "height": "50px",
+    #       "backgroundColor": "#0070f3",
+    #       "color": "#ffffff",
+    #       "fontSize": "16px"
+    #     },
+    #     "attributes": {},
+    #     "events": {"onClick": "none"}
+    #   }
+    # }
+
+    component_order = JSONField  # ["comp-uuid-1", "comp-uuid-2"]
+>>>>>>> origin/main
 
     thumbnail = ImageField (optional)
 
@@ -213,6 +407,7 @@ class Screen(models.Model):
   "screen_type": "page",
   "order": 0,
 
+<<<<<<< HEAD
   "width": 1440,
   "height": 1024,
   "background_color": "#f5f5f5",
@@ -230,6 +425,27 @@ class Screen(models.Model):
     }
   ],
 
+=======
+  "canvas_width": 1440,
+  "canvas_height": 1024,
+  "background_color": "#f5f5f5",
+
+  "components": {
+    "comp-btn-1": {
+      "id": "comp-btn-1",
+      "type": "button",
+      "content": "Get Started",
+      "x": 600,
+      "y": 400,
+      "style": {
+        "backgroundColor": "#ff0000",
+        "fontSize": "18px"
+      }
+    }
+  },
+
+  "component_order": ["comp-btn-1"],
+>>>>>>> origin/main
   "created_from_ocr": true,
   "last_saved_at": "2026-03-02T10:20:00Z"
 }
@@ -246,13 +462,20 @@ class OCRAnalysis(models.Model):
     id = UUID
     project = ForeignKey(Project)
 
+<<<<<<< HEAD
     image = ImageField
     original_filename = CharField
     confidence_threshold = FloatField (default 0.5)
+=======
+    image_file = ImageField
+    image_name = CharField
+    confidence_threshold = FloatField
+>>>>>>> origin/main
 
     # Kết quả OCR
     detected_components = JSONField
     # {
+<<<<<<< HEAD
     #   "raw_response": {...},  # Raw từ Nanonets hoặc mock
     #   "normalized_components": [...]  # Đã chuẩn hóa
     # }
@@ -260,6 +483,15 @@ class OCRAnalysis(models.Model):
     status = CharField  # pending|processing|completed|failed
     error_message = TextField (optional)
     processing_time = FloatField (optional, seconds)
+=======
+    #   "raw_response": {...},  # Raw từ Nanonets
+    #   "normalized_components": [...]  # Đã chuẩn hóa
+    # }
+
+    status = CharField  # PROCESSING|SUCCESS|FAILED
+    error_message = TextField
+    processing_time = FloatField
+>>>>>>> origin/main
 
     created_at = DateTime
 ```
@@ -270,24 +502,41 @@ class OCRAnalysis(models.Model):
 {
   "id": "ocr-uuid-1",
   "project_id": "550e8400-e29b-41d4-a716-446655440000",
+<<<<<<< HEAD
   "image": "ocr_uploads/2026/03/02/homepage_mockup.png",
   "original_filename": "homepage_mockup.png",
   "confidence_threshold": 0.7,
   "detected_components": {
     "raw_response": {
       "predictions": ["..."]
+=======
+  "image_file": "ocr_uploads/2026/03/02/homepage_mockup.png",
+  "confidence_threshold": 0.7,
+  "detected_components": {
+    "raw_response": {
+      "predictions": [...]
+>>>>>>> origin/main
     },
     "normalized_components": [
       {
         "type": "button",
         "content": "Get Started",
+<<<<<<< HEAD
         "position": { "x": 600, "y": 400 },
         "style": { "backgroundColor": "#0070f3" },
+=======
+        "position": {"x": 600, "y": 400},
+        "style": {"backgroundColor": "#0070f3"},
+>>>>>>> origin/main
         "confidence": 0.95
       }
     ]
   },
+<<<<<<< HEAD
   "status": "completed",
+=======
+  "status": "SUCCESS",
+>>>>>>> origin/main
   "processing_time": 2.3,
   "created_at": "2026-03-02T10:05:00Z"
 }
@@ -307,6 +556,7 @@ class ScreenVersion(models.Model):
     version_number = IntegerField  # 1, 2, 3...
 
     # Snapshot components tại version này
+<<<<<<< HEAD
     components = JSONField  # cùng format list như Screen.components
 
     change_type = CharField  # OCR_IMPORT|MANUAL_EDIT|AUTO_SAVE|RESTORE|DUPLICATE
@@ -316,6 +566,15 @@ class ScreenVersion(models.Model):
     thumbnail = ImageField (optional)
     created_by = ForeignKey(User, optional)  # ai tạo version này
 
+=======
+    components = JSONField
+    component_order = JSONField
+
+    change_type = CharField  # OCR_IMPORT|MANUAL_EDIT|AUTO_SAVE|RESTORE
+    description = TextField
+    changed_components = JSONField  # ["comp-1", "comp-2"]
+
+>>>>>>> origin/main
     created_at = DateTime
 ```
 
@@ -356,6 +615,7 @@ Thư viện components có sẵn.
 ```python
 class ComponentTemplate(models.Model):
     id = UUID
+<<<<<<< HEAD
 
     # Thông tin template
     name = CharField
@@ -387,6 +647,16 @@ class ComponentTemplate(models.Model):
 
     created_at = DateTime
     updated_at = DateTime
+=======
+    name = CharField
+    category = CharField  # button, input, card, layout
+    type = CharField
+    thumbnail_url = URLField
+    template_data = JSONField
+    description = TextField
+    is_active = Boolean
+    created_at = DateTime
+>>>>>>> origin/main
 ```
 
 ---
@@ -1577,19 +1847,31 @@ Backend/
 
 ## 🧪 Testing
 
+<<<<<<< HEAD
 ### Automated tests
+=======
+### Run tests
+>>>>>>> origin/main
 
 ```bash
 python manage.py test
 ```
 
+<<<<<<< HEAD
 Chạy test cho module cụ thể:
+=======
+### Run specific test
+>>>>>>> origin/main
 
 ```bash
 python manage.py test api.tests.test_projects
 ```
 
+<<<<<<< HEAD
 Coverage:
+=======
+### Coverage
+>>>>>>> origin/main
 
 ```bash
 pip install coverage
@@ -1597,6 +1879,7 @@ coverage run --source='.' manage.py test
 coverage report
 ```
 
+<<<<<<< HEAD
 ### Manual API testing status (2026-03-02)
 
 - **Đã test & PASS (theo `API_TEST_REPORT.md`)**:
@@ -1618,6 +1901,8 @@ Chi tiết request/response thực tế xem thêm:
 - `API_TEST_REPORT.md`: log đầy đủ các API đã gọi.  
 - `API_UNTESTED_CHECKLIST.md`: danh sách API và case còn lại cần test.
 
+=======
+>>>>>>> origin/main
 ---
 
 ## 📝 Development Guidelines

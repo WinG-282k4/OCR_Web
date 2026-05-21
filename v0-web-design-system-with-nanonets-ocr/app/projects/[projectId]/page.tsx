@@ -66,8 +66,29 @@ export default function ProjectDetailPage() {
     dispatch(setCurrentScreen(screen));
     const { components, order } = beScreenToCanvasState(screen);
     dispatch(loadComponents(Object.values(components)));
-    // Generate initial HTML
-    regenerateHTML(components, order);
+
+    // Neu screen co html_content (tu OCR), dung no lam Preview/HTML
+    const storedHTML = extractHTMLContent(screen);
+    if (storedHTML) {
+      setGeneratedHTML(storedHTML);
+    } else {
+      regenerateHTML(components, order);
+    }
+  }
+
+  /**
+   * Lay html_content tu components[0].properties.html_content neu co
+   * (screen duoc tao tu OCR se luu HTML goc vao day)
+   */
+  function extractHTMLContent(screen: BEScreen): string | null {
+    if (!Array.isArray(screen.components)) return null;
+    for (const comp of screen.components) {
+      const html = comp?.properties?.html_content;
+      if (html && typeof html === 'string' && html.trim().length > 0) {
+        return html;
+      }
+    }
+    return null;
   }
 
   function regenerateHTML(
@@ -168,7 +189,11 @@ export default function ProjectDetailPage() {
   // ── Re-generate HTML whenever canvas changes ─────────────────────────────
   useEffect(() => {
     if (currentScreen) {
-      regenerateHTML();
+      // Neu screen co html_content goc (tu OCR), giu nguyen, khong ghi de
+      const storedHTML = extractHTMLContent(currentScreen);
+      if (!storedHTML) {
+        regenerateHTML();
+      }
     }
   }, [canvasState.components, canvasState.order]);
 
@@ -399,6 +424,16 @@ function ScreenCard({
   onClick: () => void;
   onDelete: () => void;
 }) {
+  // Xây dựng URL thumbnail: thumbnail từ BE là relative path (e.g. "ocr_uploads/xxx/image.jpg")
+  // Django serve qua MEDIA_URL=/media/ → http://localhost:8000/media/<path>
+  const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api')
+    .replace('/api', '');
+  const thumbnailUrl = screen.thumbnail
+    ? screen.thumbnail.startsWith('http')
+      ? screen.thumbnail
+      : `${API_ORIGIN}/media/${screen.thumbnail}`
+    : null;
+
   return (
     <div
       className={`relative group rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden ${
@@ -408,9 +443,25 @@ function ScreenCard({
       }`}
       onClick={onClick}
     >
-      {/* Screen preview (placeholder gradient) */}
-      <div className="aspect-video bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center relative">
-        <Monitor className="w-8 h-8 text-slate-600" />
+      {/* Screen preview: dùng thumbnail nếu có, fallback về gradient */}
+      <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt={screen.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // Nếu ảnh lỗi → ẩn và hiện placeholder
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Monitor className="w-8 h-8 text-slate-600" />
+          </div>
+        )}
+
+        {/* Overlay badges */}
         {screen.component_count !== undefined && screen.component_count > 0 && (
           <div className="absolute bottom-2 right-2 bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
             {screen.component_count} comp
@@ -444,6 +495,7 @@ function ScreenCard({
     </div>
   );
 }
+
 
 // ─── ScreenEditPanel Component ────────────────────────────────────────────────
 

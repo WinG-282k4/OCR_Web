@@ -141,8 +141,7 @@ class ScreenQuerySet(models.QuerySet):
     
     def annotate_component_count(self):
         """Annotate queryset with component count"""
-        from django.db.models import Value, IntegerField
-        return self.annotate(component_count=Value(0, output_field=IntegerField()))
+        return self
 
 
 class Screen(models.Model):

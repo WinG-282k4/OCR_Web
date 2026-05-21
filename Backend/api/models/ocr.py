@@ -7,6 +7,14 @@ import uuid
 from django.db import models
 
 
+def ocr_image_upload_path(instance, filename):
+    """
+    Tổ chức file OCR theo project:
+        media/ocr_uploads/<project_id>/<filename>
+    """
+    return f"ocr_uploads/{instance.project_id}/{filename}"
+
+
 class OCRAnalysis(models.Model):
     """
     OCRAnalysis - Stores OCR image analysis results
@@ -30,7 +38,7 @@ class OCRAnalysis(models.Model):
     )
     
     # Image information
-    image = models.ImageField(upload_to='ocr_uploads/%Y/%m/%d/')
+    image = models.ImageField(upload_to=ocr_image_upload_path)
     original_filename = models.CharField(max_length=255)
     
     # OCR settings

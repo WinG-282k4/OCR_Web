@@ -83,9 +83,9 @@ class ScreenListSerializer(serializers.ModelSerializer):
         model = Screen
         fields = [
             'id', 'name', 'description', 'thumbnail',
-            'width', 'height', 'order',
+            'width', 'height', 'order', 'screen_type',
             'component_count', 'current_version',
-            'updated_at'
+            'components', 'created_from_ocr', 'updated_at'
         ]
 
 
