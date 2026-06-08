@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
     const storedHTML = extractHTMLContent(screen);
     if (storedHTML) {
       try {
-        const parsed = htmlToCanvasComponents(storedHTML);
+        const parsed = await htmlToCanvasComponents(storedHTML);
         if (parsed && parsed.length > 0) {
           const compsMap: Record<string, CanvasComponent> = {};
           const ordArr: string[] = [];
@@ -163,7 +163,7 @@ export default function ProjectDetailPage() {
       );
       if (!hasOcrContainer && viewMode === 'html') {
         try {
-          const parsed = htmlToCanvasComponents(generatedHTML);
+          const parsed = await htmlToCanvasComponents(generatedHTML);
           if (parsed && parsed.length > 0) {
             dispatch(loadComponents(parsed));
             const compsMap: Record<string, CanvasComponent> = {};
@@ -231,7 +231,7 @@ export default function ProjectDetailPage() {
     }
   }
 
-  function handleViewModeChange(mode: 'design' | 'preview' | 'html') {
+  async function handleViewModeChange(mode: 'design' | 'preview' | 'html') {
     if (viewMode === 'html' && mode === 'design') {
       // Switching from HTML editor to Design view: parse if it's a non-OCR screen
       const hasOcrContainer = Object.values(canvasState.components).some(
@@ -239,7 +239,7 @@ export default function ProjectDetailPage() {
       );
       if (!hasOcrContainer) {
         try {
-          const parsed = htmlToCanvasComponents(generatedHTML);
+          const parsed = await htmlToCanvasComponents(generatedHTML);
           if (parsed && parsed.length > 0) {
             dispatch(loadComponents(parsed));
           }

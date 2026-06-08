@@ -56,7 +56,295 @@ interface ParseResult {
  * Chuyển chuỗi HTML → mảng CanvasComponent để load vào Canvas editor.
  * Chỉ chạy phía client (sử dụng DOMParser).
  */
-export function htmlToCanvasComponents(html: string): CanvasComponent[] {
+function rgbToHex(color: string): string {
+  if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') return '';
+  
+  // Handle rgba(...) and rgb(...)
+  const match = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/);
+  if (!match) return color;
+  
+  const r = parseInt(match[1]);
+  const g = parseInt(match[2]);
+  const b = parseInt(match[3]);
+  const a = match[4] ? parseFloat(match[4]) : 1;
+  
+  if (a === 0) return ''; // transparent
+  
+  const hex = '#' + [r, g, b].map(x => {
+    const hexStr = x.toString(16);
+    return hexStr.length === 1 ? '0' + hexStr : hexStr;
+  }).join('');
+  
+  return hex;
+}
+
+function isVisualContainer(el: Element, computed: CSSStyleDeclaration): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (!['div', 'section', 'main', 'header', 'footer', 'nav', 'form', 'ul', 'ol', 'aside', 'article'].includes(tag)) {
+    return false;
+  }
+  
+  // Has a background color that is not transparent/white
+  const bg = computed.backgroundColor;
+  const hasBg = bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && rgbToHex(bg) !== '#ffffff';
+  
+  // Has a border
+  const border = computed.border;
+  const hasBorder = border && border !== 'none' && !border.startsWith('0px');
+  
+  // Has box shadow
+  const shadow = computed.boxShadow;
+  const hasShadow = shadow && shadow !== 'none';
+  
+  // Has special class name
+  const className = el.className || '';
+  const hasCardClass = className.includes('card') || className.includes('panel') || className.includes('container') || className.includes('bg-') || className.includes('border-');
+  
+  const rect = el.getBoundingClientRect();
+  return !!((hasBg || hasBorder || hasShadow || hasCardClass) && rect.width > 40 && rect.height > 40);
+}
+
+/**
+ * Chuyển chuỗi HTML → mảng CanvasComponent để load vào Canvas editor.
+ * Sử dụng iframe sandboxed để load Tailwind CDN, giúp render chính xác kích thước và tọa độ thật.
+ */
+export async function htmlToCanvasComponents(html: string): Promise<CanvasComponent[]> {
+  if (typeof window === 'undefined') return [];
+
+  return new Promise<CanvasComponent[]>((resolve) => {
+    // 1. Tạo iframe ẩn để tính toán layout
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-10000px';
+    iframe.style.left = '-10000px';
+    iframe.style.width = '1440px';
+    iframe.style.height = '3000px'; // Chiều cao đủ lớn để tránh bị cuộn dọc
+    iframe.style.border = 'none';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) {
+      if (iframe.parentNode) document.body.removeChild(iframe);
+      resolve(fallbackParser(html));
+      return;
+    }
+
+    // 2. Viết cấu trúc HTML và load Tailwind CSS CDN
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              background-color: transparent;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="tailwind-parse-container">${html}</div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    const iframeWindow = iframe.contentWindow;
+    if (!iframeWindow) {
+      if (iframe.parentNode) document.body.removeChild(iframe);
+      resolve(fallbackParser(html));
+      return;
+    }
+
+    // 3. Đợi Tailwind biên dịch CSS xong (MutationObserver hoặc kiểm tra style tag)
+    let checkCount = 0;
+    const checkInterval = setInterval(() => {
+      checkCount++;
+      const hasTailwindStyles = doc.getElementById('tailwindcss') || doc.querySelector('style');
+      if (hasTailwindStyles || checkCount > 30) {
+        clearInterval(checkInterval);
+        
+        // Chờ thêm 50ms nữa cho render hoàn tất các thuộc tính layout
+        setTimeout(() => {
+          try {
+            const components: CanvasComponent[] = [];
+            const container = doc.getElementById('tailwind-parse-container') || doc.body;
+            
+            _idSeed = 0;
+            
+            function walk(el: Element) {
+              const tag = el.tagName.toLowerCase();
+              if (['script', 'style', 'meta', 'link', 'head', 'noscript', 'br'].includes(tag)) return;
+              if (el.id === 'tailwind-parse-container') {
+                for (const child of Array.from(el.children)) {
+                  walk(child);
+                }
+                return;
+              }
+
+              const rect = el.getBoundingClientRect();
+              if (rect.width <= 0 || rect.height <= 0) {
+                for (const child of Array.from(el.children)) {
+                  walk(child);
+                }
+                return;
+              }
+
+              const computed = iframeWindow!.getComputedStyle(el);
+              const textContent = (el as HTMLElement).innerText?.trim() || el.textContent?.trim() || '';
+
+              // Nhận diện component
+              let type: ComponentType | null = null;
+              let label = textContent || tag;
+              let content = textContent;
+              let placeholder = '';
+              let attributes: Record<string, string> = {};
+
+              if (tag === 'table') {
+                type = 'table';
+                attributes = { html: el.outerHTML };
+                label = 'Table Component';
+                content = '';
+              } else if (tag === 'img') {
+                type = 'image';
+                let src = el.getAttribute('src') || '';
+                const alt = el.getAttribute('alt') || 'Image';
+                
+                if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+                  const apiBase = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) || 'http://localhost:8000/api';
+                  const origin = apiBase.replace('/api', '');
+                  const path = src.startsWith('/media/') ? src : `/media/${src}`;
+                  src = `${origin}${path}`;
+                }
+                
+                attributes = { src, alt };
+                label = alt;
+                content = alt;
+              } else if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+                type = 'input';
+                placeholder = el.getAttribute('placeholder') || '';
+                label = placeholder || el.getAttribute('type') || 'input';
+                content = '';
+              } else if (tag === 'button' || tag === 'a' || computed.cursor === 'pointer' || el.getAttribute('role') === 'button') {
+                type = 'button';
+                if (tag === 'a') {
+                  attributes = { href: el.getAttribute('href') || '#' };
+                }
+              } else if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
+                type = 'heading';
+              } else if (textContent && el.children.length === 0) {
+                const fSize = parseFloat(computed.fontSize);
+                const isBold = computed.fontWeight === 'bold' || parseInt(computed.fontWeight) >= 600;
+                if (fSize >= 20 && isBold) {
+                  type = 'heading';
+                } else {
+                  type = 'text';
+                }
+              } else if (isVisualContainer(el, computed)) {
+                type = 'container';
+              }
+
+              if (type) {
+                const borderVal = computed.border;
+                const hasBorder = borderVal && borderVal !== 'none' && !borderVal.startsWith('0px');
+                const shadowVal = computed.boxShadow;
+                const hasShadow = shadowVal && shadowVal !== 'none';
+                
+                const canvasStyle: Record<string, string> = {
+                  width: `${Math.round(rect.width)}px`,
+                  height: `${Math.round(rect.height)}px`,
+                };
+
+                if (computed.zIndex && computed.zIndex !== 'auto') {
+                  canvasStyle.zIndex = computed.zIndex;
+                }
+
+                // Common typography styles for text-containing elements
+                if (['heading', 'text', 'button', 'input'].includes(type)) {
+                  canvasStyle.fontSize = computed.fontSize;
+                  canvasStyle.fontWeight = computed.fontWeight;
+                  canvasStyle.color = rgbToHex(computed.color) || '#1f2937';
+                  canvasStyle.fontFamily = computed.fontFamily;
+                  canvasStyle.textAlign = computed.textAlign;
+                  if (computed.lineHeight && computed.lineHeight !== 'normal') {
+                    canvasStyle.lineHeight = computed.lineHeight;
+                  }
+                  if (computed.letterSpacing && computed.letterSpacing !== 'normal') {
+                    canvasStyle.letterSpacing = computed.letterSpacing;
+                  }
+                }
+
+                if (type === 'button') {
+                  canvasStyle.backgroundColor = rgbToHex(computed.backgroundColor) || '#3b82f6';
+                  canvasStyle.borderRadius = computed.borderRadius !== '0px' ? computed.borderRadius : '6px';
+                  if (hasBorder) canvasStyle.border = borderVal;
+                  if (hasShadow) canvasStyle.boxShadow = shadowVal;
+                } else if (type === 'input') {
+                  canvasStyle.backgroundColor = rgbToHex(computed.backgroundColor) || '#ffffff';
+                  canvasStyle.border = hasBorder ? borderVal : '1px solid #d1d5db';
+                  canvasStyle.borderRadius = computed.borderRadius !== '0px' ? computed.borderRadius : '6px';
+                  if (hasShadow) canvasStyle.boxShadow = shadowVal;
+                } else if (type === 'image') {
+                  canvasStyle.borderRadius = computed.borderRadius !== '0px' ? computed.borderRadius : '0px';
+                  if (hasBorder) canvasStyle.border = borderVal;
+                  if (hasShadow) canvasStyle.boxShadow = shadowVal;
+                } else if (type === 'table') {
+                  canvasStyle.backgroundColor = rgbToHex(computed.backgroundColor) || 'transparent';
+                  if (hasBorder) canvasStyle.border = borderVal;
+                  canvasStyle.borderRadius = computed.borderRadius !== '0px' ? computed.borderRadius : '0px';
+                  if (hasShadow) canvasStyle.boxShadow = shadowVal;
+                } else if (type === 'container') {
+                  canvasStyle.backgroundColor = rgbToHex(computed.backgroundColor) || 'transparent';
+                  if (hasBorder) canvasStyle.border = borderVal;
+                  canvasStyle.borderRadius = computed.borderRadius !== '0px' ? computed.borderRadius : '0px';
+                  if (hasShadow) canvasStyle.boxShadow = shadowVal;
+                }
+
+                components.push({
+                  id: uid(),
+                  type,
+                  label: label.substring(0, 100),
+                  content: content,
+                  placeholder,
+                  x: Math.round(rect.left),
+                  y: Math.round(rect.top),
+                  style: canvasStyle as any,
+                  attributes,
+                  events: { onClick: 'none' }
+                });
+
+                if (type === 'container') {
+                  for (const child of Array.from(el.children)) {
+                    walk(child);
+                  }
+                }
+              } else {
+                for (const child of Array.from(el.children)) {
+                  walk(child);
+                }
+              }
+            }
+
+            walk(container);
+
+            if (iframe.parentNode) document.body.removeChild(iframe);
+            resolve(components);
+          } catch (err) {
+            console.error('Lỗi khi parse layout iframe:', err);
+            if (iframe.parentNode) document.body.removeChild(iframe);
+            resolve(fallbackParser(html));
+          }
+        }, 50);
+      }
+    }, 10);
+  });
+}
+
+function fallbackParser(html: string): CanvasComponent[] {
   if (typeof window === 'undefined') return [];
 
   _idSeed = 0;
@@ -71,19 +359,16 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
     for (const child of Array.from(parent.children)) {
       const tag = child.tagName.toLowerCase();
 
-      // Bỏ qua các thẻ không có nội dung hiển thị
       if (['script', 'style', 'meta', 'link', 'head', 'noscript'].includes(tag)) continue;
 
       const text = (child as HTMLElement).innerText?.trim() || child.textContent?.trim() || '';
       if (!text && tag !== 'img') {
-        // Có thể là wrapper div → đệ quy vào
         if (['div', 'section', 'header', 'footer', 'main', 'article'].includes(tag)) {
           walk(child);
         }
         continue;
       }
 
-      // ── Headings ────────────────────────────────────────────────────────────
       if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
         const comp: CanvasComponent = {
           id: uid(),
@@ -110,7 +395,6 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
         continue;
       }
 
-      // ── Paragraph ────────────────────────────────────────────────────────────
       if (tag === 'p') {
         const lineCount = Math.ceil(text.length / 90) + 1;
         const h = Math.max(40, lineCount * 24);
@@ -139,12 +423,10 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
         continue;
       }
 
-      // ── Image ────────────────────────────────────────────────────────────────
       if (tag === 'img') {
         let src = child.getAttribute('src') || '';
         const alt = child.getAttribute('alt') || 'Image';
         
-        // Prefix relative media URLs with Backend Origin
         if (src && !src.startsWith('http') && !src.startsWith('data:')) {
           const apiBase = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) || 'http://localhost:8000/api';
           const origin = apiBase.replace('/api', '');
@@ -173,7 +455,27 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
         continue;
       }
 
-      // ── Standalone button ────────────────────────────────────────────────────
+      if (tag === 'table') {
+        const comp: CanvasComponent = {
+          id: uid(),
+          type: 'table',
+          label: 'Table Component',
+          content: '',
+          placeholder: '',
+          x: MARGIN_X,
+          y: currentY,
+          style: {
+            width: `${DEFAULT_CONTENT_WIDTH}px`,
+            height: '240px',
+          },
+          attributes: { html: child.outerHTML },
+          events: { onClick: 'none' },
+        };
+        components.push(comp);
+        currentY += 256;
+        continue;
+      }
+
       if (tag === 'button') {
         const comp: CanvasComponent = {
           id: uid(),
@@ -198,7 +500,6 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
         continue;
       }
 
-      // ── Input ────────────────────────────────────────────────────────────────
       if (tag === 'input') {
         const inputType = child.getAttribute('type') || 'text';
         const ph = child.getAttribute('placeholder') || '';
@@ -225,7 +526,6 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
         continue;
       }
 
-      // ── Nav → nhóm anchor buttons hàng ngang ─────────────────────────────────
       if (tag === 'nav') {
         const links = Array.from(child.querySelectorAll('a')).filter(
           (a) => (a.textContent?.trim() || '').length > 0
@@ -259,12 +559,11 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
           }
           currentY += 60;
         } else {
-          walk(child); // nav không có anchor → đệ quy
+          walk(child);
         }
         continue;
       }
 
-      // ── Anchor link standalone ───────────────────────────────────────────────
       if (tag === 'a' && text) {
         const comp: CanvasComponent = {
           id: uid(),
@@ -289,7 +588,6 @@ export function htmlToCanvasComponents(html: string): CanvasComponent[] {
         continue;
       }
 
-      // ── Div/Section container → đệ quy vào trong ────────────────────────────
       if (['div', 'section', 'header', 'footer', 'main', 'article', 'ul', 'form'].includes(tag)) {
         walk(child);
         continue;

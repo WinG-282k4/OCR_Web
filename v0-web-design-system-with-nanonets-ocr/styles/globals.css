@@ -123,3 +123,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Scrollbars for premium dark theme look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.6);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Firefox scrollbars support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.3) rgba(2, 6, 23, 0.3);
+}
+

@@ -2,7 +2,7 @@
 
 export type ComponentType =
   | "button" | "text" | "heading" | "input" | "textarea"
-  | "checkbox" | "card" | "container" | "image" | "form" | "label" | "link";
+  | "checkbox" | "card" | "container" | "image" | "form" | "label" | "link" | "table";
 
 export interface ComponentStyle {
   width?: string;
@@ -51,6 +51,9 @@ export interface CanvasState {
   order: string[];
   selectedId: string | null;
   isDragging: boolean;
+  editingId: string | null;
+  past: Array<{ components: Record<string, CanvasComponent>; order: string[] }>;
+  future: Array<{ components: Record<string, CanvasComponent>; order: string[] }>;
 }
 
 // ─── Backend (Django) Types ──────────────────────────────────────────────────

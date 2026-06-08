@@ -157,14 +157,7 @@ function PreviewTab({ htmlContent }: { htmlContent: string }) {
         ref={iframeRef}
         className="w-full h-full border-none"
         title="HTML Preview"
-        sandbox={{
-          allow: [
-            "same-origin",
-            "scripts",
-            "popups",
-            "popups-to-escape-sandbox",
-          ] as any,
-        }}
+        sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
       />
     </div>
   );

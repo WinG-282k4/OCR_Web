@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setProjects, addProject } from '@/store/slices/sessionSlice';
+import { setProjects, addProject, removeProject } from '@/store/slices/sessionSlice';
 import { logout } from '@/store/slices/authSlice';
 import { clearAuth, getRefreshToken } from '@/lib/auth';
 import { projectsAPI, authAPI } from '@/lib/api-client';
@@ -63,6 +63,18 @@ export default function ProjectsPage() {
     }
   }
 
+  async function handleDeleteProject(projectId: string) {
+    if (!confirm('Bạn có chắc chắn muốn xóa dự án này? Mọi màn hình và phiên bản thiết kế liên quan sẽ bị xóa vĩnh viễn.')) {
+      return;
+    }
+    try {
+      await projectsAPI.delete(projectId);
+      dispatch(removeProject(projectId));
+    } catch (e: any) {
+      setError(e.message || 'Xóa dự án thất bại');
+    }
+  }
+
   async function handleLogout() {
     try {
       const refresh = getRefreshToken();
@@ -71,12 +83,6 @@ export default function ProjectsPage() {
     clearAuth();
     dispatch(logout());
     router.replace('/login');
-  }
-
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString('vi-VN', {
-      day: '2-digit', month: '2-digit', year: 'numeric'
-    });
   }
 
   return (
@@ -103,7 +109,7 @@ export default function ProjectsPage() {
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+              className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Đăng xuất</span>
@@ -121,7 +127,7 @@ export default function ProjectsPage() {
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium hover:from-indigo-500 hover:to-violet-500 transition-all shadow-lg shadow-indigo-600/25"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium hover:from-indigo-500 hover:to-violet-500 transition-all shadow-lg shadow-indigo-600/25 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Tạo dự án mới
@@ -132,7 +138,7 @@ export default function ProjectsPage() {
         {error && (
           <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center justify-between">
             {error}
-            <button onClick={() => setError('')}><X className="w-4 h-4" /></button>
+            <button onClick={() => setError('')} className="cursor-pointer"><X className="w-4 h-4" /></button>
           </div>
         )}
 
@@ -151,7 +157,7 @@ export default function ProjectsPage() {
             <p className="text-slate-400 text-sm mb-6">Tạo dự án đầu tiên để bắt đầu thiết kế</p>
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium hover:from-indigo-500 hover:to-violet-500 transition-all"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium hover:from-indigo-500 hover:to-violet-500 transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               Tạo dự án đầu tiên
@@ -165,6 +171,7 @@ export default function ProjectsPage() {
                 key={project.id}
                 project={project}
                 onClick={() => router.push(`/projects/${project.id}`)}
+                onDelete={() => handleDeleteProject(project.id)}
               />
             ))}
           </div>
@@ -179,7 +186,7 @@ export default function ProjectsPage() {
               <h2 className="text-white text-lg font-semibold">Tạo dự án mới</h2>
               <button
                 onClick={() => { setShowCreate(false); setNewName(''); setNewDesc(''); }}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -213,14 +220,14 @@ export default function ProjectsPage() {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => { setShowCreate(false); setNewName(''); setNewDesc(''); }}
-                className="flex-1 py-2.5 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
               >
                 Huỷ
               </button>
               <button
                 onClick={handleCreateProject}
                 disabled={!newName.trim() || creating}
-                className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2 hover:from-indigo-500 hover:to-violet-500 transition-all"
+                className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2 hover:from-indigo-500 hover:to-violet-500 transition-all cursor-pointer"
               >
                 {creating ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang tạo...</> : 'Tạo dự án'}
               </button>
@@ -232,34 +239,54 @@ export default function ProjectsPage() {
   );
 }
 
-function ProjectCard({ project, onClick }: { project: BEProject; onClick: () => void }) {
+interface ProjectCardProps {
+  project: BEProject;
+  onClick: () => void;
+  onDelete: () => void;
+}
+
+function ProjectCard({ project, onClick, onDelete }: ProjectCardProps) {
   return (
-    <button
-      onClick={onClick}
-      className="group text-left bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/8 hover:border-indigo-500/40 transition-all duration-200 hover:shadow-lg hover:shadow-indigo-500/10"
+    <div
+      className="group relative flex flex-col justify-between bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/8 hover:border-indigo-500/40 transition-all duration-200 hover:shadow-lg hover:shadow-indigo-500/10 min-h-[220px]"
     >
-      {/* Thumbnail placeholder */}
-      <div className="w-full h-32 bg-gradient-to-br from-indigo-600/20 to-violet-600/20 rounded-xl mb-4 flex items-center justify-center group-hover:from-indigo-600/30 group-hover:to-violet-600/30 transition-all">
-        <LayoutGrid className="w-10 h-10 text-indigo-400/60" />
+      <div onClick={onClick} className="cursor-pointer flex-1">
+        {/* Thumbnail placeholder */}
+        <div className="w-full h-28 bg-gradient-to-br from-indigo-600/20 to-violet-600/20 rounded-xl mb-4 flex items-center justify-center group-hover:from-indigo-600/30 group-hover:to-violet-600/30 transition-all">
+          <LayoutGrid className="w-8 h-8 text-indigo-400/60" />
+        </div>
+
+        <h3 className="text-white font-semibold text-sm mb-1 truncate group-hover:text-indigo-300 transition-colors">
+          {project.name}
+        </h3>
+        {project.description && (
+          <p className="text-slate-400 text-xs line-clamp-2 h-8 overflow-hidden">{project.description}</p>
+        )}
       </div>
 
-      <h3 className="text-white font-semibold text-sm mb-1 truncate group-hover:text-indigo-300 transition-colors">
-        {project.name}
-      </h3>
-      {project.description && (
-        <p className="text-slate-400 text-xs mb-3 line-clamp-2">{project.description}</p>
-      )}
-
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <span className="flex items-center gap-1">
-          <LayoutGrid className="w-3 h-3" />
-          {project.screen_count ?? 0} screen
+      <div className="flex items-center justify-between text-xs text-slate-500 mt-4 border-t border-white/5 pt-3">
+        <span className="flex items-center gap-1 cursor-pointer" onClick={onClick}>
+          <LayoutGrid className="w-3.5 h-3.5 text-indigo-400" />
+          {project.screen_count ?? 0} {project.screen_count === 1 ? 'screen' : 'screens'}
         </span>
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          {new Date(project.updated_at).toLocaleDateString('vi-VN')}
-        </span>
+        
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5 text-slate-500" />
+            {new Date(project.updated_at).toLocaleDateString('vi-VN')}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 p-1.5 rounded-lg transition-all cursor-pointer"
+            title="Xóa dự án"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-    </button>
+    </div>
   );
 }

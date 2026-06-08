@@ -15,6 +15,7 @@ import {
   Layers,
   Zap,
   Copy,
+  Table,
 } from "lucide-react";
 
 interface ComponentConfig {
@@ -159,6 +160,19 @@ const components: ComponentConfig[] = [
       gap: "16px",
     },
   },
+  {
+    type: "table",
+    label: "Table",
+    icon: <Table size={20} />,
+    defaultStyle: {
+      width: "500px",
+      height: "240px",
+      backgroundColor: "#ffffff",
+      borderRadius: "6px",
+      border: "1px solid #e2e8f0",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    },
+  },
 ];
 
 export default function ComponentPalette() {
@@ -171,6 +185,31 @@ export default function ComponentPalette() {
       label: config.label,
       content: config.content,
       style: config.defaultStyle,
+      attributes: config.type === "table" ? {
+        html: `
+<table class="min-w-full divide-y divide-slate-200">
+  <thead class="bg-slate-50">
+    <tr>
+      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-700">Tên</th>
+      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-700">Vai trò</th>
+      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-700">Trạng thái</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-slate-200 bg-white">
+    <tr>
+      <td class="px-4 py-2 text-sm text-slate-600">Nguyễn Văn A</td>
+      <td class="px-4 py-2 text-sm text-slate-600">Developer</td>
+      <td class="px-4 py-2 text-sm text-green-600 font-semibold">Hoạt động</td>
+    </tr>
+    <tr>
+      <td class="px-4 py-2 text-sm text-slate-600">Trần Thị B</td>
+      <td class="px-4 py-2 text-sm text-slate-600">Designer</td>
+      <td class="px-4 py-2 text-sm text-green-600 font-semibold">Hoạt động</td>
+    </tr>
+  </tbody>
+</table>
+        `.trim()
+      } : {},
       children: [],
       x: 50 + Math.random() * 100,
       y: 50 + Math.random() * 100,
@@ -187,6 +226,51 @@ export default function ComponentPalette() {
         <p className="text-xs text-slate-400 mt-1">
           Kéo thả hoặc click để thêm
         </p>
+      </div>
+
+      {/* Upload design image to create component */}
+      <div className="px-4 py-3 border-b border-white/5 bg-white/5">
+        <div className="relative flex flex-col items-center justify-center border border-dashed border-white/10 hover:border-indigo-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-indigo-600/5 group">
+          <input
+            type="file"
+            accept="image/*"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  if (event.target?.result) {
+                    const newComponent: CanvasComponent = {
+                      id: `component-${Date.now()}`,
+                      type: "image",
+                      label: file.name.split(".")[0] || "Ảnh thiết kế",
+                      content: "",
+                      style: {
+                        width: "350px",
+                        height: "250px",
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+                      },
+                      attributes: {
+                        src: event.target.result as string,
+                        alt: file.name,
+                      },
+                      children: [],
+                      x: 100 + Math.random() * 100,
+                      y: 100 + Math.random() * 100,
+                    };
+                    dispatch(addComponent(newComponent));
+                  }
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
+          <Image size={24} className="text-slate-400 group-hover:text-indigo-400 mb-1.5 transition-colors" />
+          <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition-colors">Tải lên ảnh thiết kế</span>
+          <span className="text-[10px] text-slate-500 text-center mt-0.5">Tạo nhanh component ảnh</span>
+        </div>
       </div>
 
       {/* Component Grid */}

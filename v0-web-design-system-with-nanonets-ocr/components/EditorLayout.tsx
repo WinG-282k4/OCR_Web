@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setMode, toggleComponentPalette, togglePropertiesPanel } from "@/store/slices/uiSlice";
-import { clearCanvas } from "@/store/slices/canvasSlice";
+import { clearCanvas, undo, redo } from "@/store/slices/canvasSlice";
 import ComponentPalette from "./ComponentPalette";
 import Canvas from "./Canvas";
 import PropertiesPanel from "./PropertiesPanel";
 import HTMLExport from "./HTMLExport";
 import OCRUpload from "./OCRUpload";
-import { Menu, X, Download, Zap, LayoutTemplate, Home } from "lucide-react";
+import { Menu, X, Download, Zap, LayoutTemplate, Home, Undo2, Redo2 } from "lucide-react";
 import Link from "next/link";
 
 export default function EditorLayout() {
@@ -17,8 +17,68 @@ export default function EditorLayout() {
   const { mode, showComponentPalette, showPropertiesPanel } = useAppSelector(
     (state) => state.ui
   );
-  const { order } = useAppSelector((state) => state.canvas);
+  const { order, past, future } = useAppSelector((state) => state.canvas);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  // States for properties panel resizing
+  const [propertiesWidth, setPropertiesWidth] = useState(320);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+
+  const startResizingRight = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingRight(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRight) return;
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth >= 260 && newWidth <= 600) {
+        setPropertiesWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingRight(false);
+    };
+
+    if (isResizingRight) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizingRight]);
+
+  // Setup global keyboard shortcuts for Ctrl+Z and Ctrl+Y
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if editing an input field
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        dispatch(undo());
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        dispatch(redo());
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [dispatch]);
 
   const handleClearCanvas = () => {
     if (confirm("Are you sure you want to clear the canvas?")) {
@@ -28,6 +88,10 @@ export default function EditorLayout() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50">
+      {/* Invisible overlay to capture pointer events and prevent iframe blocking drag resizing */}
+      {isResizingRight && (
+        <div className="fixed inset-0 z-[9999] cursor-col-resize select-none bg-transparent" />
+      )}
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -53,6 +117,29 @@ export default function EditorLayout() {
               <Home size={16} />
               Home
             </Link>
+
+            {/* Undo / Redo buttons */}
+            {mode === "design" && (
+              <div className="flex items-center border border-slate-200 rounded-lg p-0.5 bg-slate-50 gap-0.5">
+                <button
+                  onClick={() => dispatch(undo())}
+                  disabled={past.length === 0}
+                  className="p-1.5 text-slate-600 hover:bg-white hover:text-slate-900 rounded disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-600 cursor-pointer"
+                  title="Hoàn tác (Ctrl + Z)"
+                >
+                  <Undo2 size={16} />
+                </button>
+                <button
+                  onClick={() => dispatch(redo())}
+                  disabled={future.length === 0}
+                  className="p-1.5 text-slate-600 hover:bg-white hover:text-slate-900 rounded disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-600 cursor-pointer"
+                  title="Làm lại (Ctrl + Y)"
+                >
+                  <Redo2 size={16} />
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
               <button
                 onClick={() => dispatch(setMode("design"))}
@@ -130,6 +217,28 @@ export default function EditorLayout() {
               <Home size={16} />
               <span>Home</span>
             </Link>
+            <div className="flex items-center gap-2 px-4 py-1.5 border border-slate-200 rounded-md w-fit bg-slate-50 mb-2">
+              <button
+                onClick={() => {
+                  dispatch(undo());
+                  setShowMobileMenu(false);
+                }}
+                disabled={past.length === 0}
+                className="p-1 text-slate-600 hover:bg-white rounded disabled:opacity-30"
+              >
+                <Undo2 size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  dispatch(redo());
+                  setShowMobileMenu(false);
+                }}
+                disabled={future.length === 0}
+                className="p-1 text-slate-600 hover:bg-white rounded disabled:opacity-30"
+              >
+                <Redo2 size={16} />
+              </button>
+            </div>
             <button
               onClick={() => {
                 dispatch(setMode("design"));
@@ -195,12 +304,23 @@ export default function EditorLayout() {
       <div className="flex-1 flex overflow-hidden">
         {mode === "design" ? (
           <>
-            {/* Component Palette Sidebar */}
-            {showComponentPalette && (
-              <div className="hidden md:block overflow-hidden">
-                <ComponentPalette />
-              </div>
-            )}
+            {/* Component Palette Sidebar with Collapse Handle */}
+            <div className="relative hidden md:flex h-full flex-shrink-0 z-20">
+              {showComponentPalette && (
+                <div className="w-[260px] h-full overflow-hidden">
+                  <ComponentPalette />
+                </div>
+              )}
+              <button
+                onClick={() => dispatch(toggleComponentPalette())}
+                className="absolute top-1/2 -translate-y-1/2 right-[-12px] z-40 bg-slate-950 border border-white/10 hover:border-indigo-500 text-slate-300 hover:text-white w-[12px] h-[60px] rounded-r-md flex items-center justify-center cursor-pointer transition-all shadow-md"
+                title={showComponentPalette ? "Thu gọn Sidebar" : "Mở rộng Sidebar"}
+              >
+                <span className="text-[9px] font-extrabold select-none">
+                  {showComponentPalette ? "‹" : "›"}
+                </span>
+              </button>
+            </div>
 
             {/* Canvas */}
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -213,12 +333,35 @@ export default function EditorLayout() {
               <Canvas />
             </div>
 
-            {/* Properties Sidebar */}
-            {showPropertiesPanel && (
-              <div className="hidden lg:block overflow-hidden">
-                <PropertiesPanel />
-              </div>
-            )}
+            {/* Properties Sidebar with Collapse Handle & Resizer */}
+            <div 
+              className="relative hidden lg:flex h-full flex-shrink-0 z-20"
+              style={{ width: showPropertiesPanel ? propertiesWidth : 0 }}
+            >
+              <button
+                onClick={() => dispatch(togglePropertiesPanel())}
+                className="absolute top-1/2 -translate-y-1/2 left-[-12px] z-40 bg-slate-950 border border-white/10 hover:border-indigo-500 text-slate-300 hover:text-white w-[12px] h-[60px] rounded-l-md flex items-center justify-center cursor-pointer transition-all shadow-md"
+                title={showPropertiesPanel ? "Thu gọn Sidebar" : "Mở rộng Sidebar"}
+              >
+                <span className="text-[9px] font-extrabold select-none">
+                  {showPropertiesPanel ? "›" : "‹"}
+                </span>
+              </button>
+
+              {/* Resize Handle Divider */}
+              {showPropertiesPanel && (
+                <div
+                  onMouseDown={startResizingRight}
+                  className="absolute left-[-3px] top-0 bottom-0 w-[6px] cursor-col-resize hover:bg-indigo-500/40 transition-all z-50 active:bg-indigo-500"
+                />
+              )}
+
+              {showPropertiesPanel && (
+                <div className="w-full h-full overflow-hidden">
+                  <PropertiesPanel />
+                </div>
+              )}
+            </div>
           </>
         ) : (
           // Export Mode

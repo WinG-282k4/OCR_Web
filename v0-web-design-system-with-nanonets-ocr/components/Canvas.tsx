@@ -11,13 +11,13 @@ export default function Canvas() {
 
   return (
     <div 
-      className="flex-1 relative overflow-auto bg-slate-100/50 p-10 flex justify-center items-start"
+      className="flex-1 relative overflow-auto bg-slate-100/50 p-10 flex justify-start items-start"
       onClick={() => dispatch(selectComponent(null))}
     >
       {/* Canvas container scaled to a typical desktop size */}
       <div 
         ref={canvasRef} 
-        className="bg-white shadow-sm ring-1 ring-slate-200 relative overflow-hidden"
+        className="bg-white shadow-sm ring-1 ring-slate-200 relative overflow-hidden mx-auto"
         style={{ width: 1440, height: 900, flexShrink: 0 }}
       >
         <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
