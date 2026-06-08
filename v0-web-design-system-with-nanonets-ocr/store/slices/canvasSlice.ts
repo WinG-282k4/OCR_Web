@@ -5,6 +5,7 @@ const initialState: CanvasState = {
   components: {},
   order: [],
   selectedId: null,
+  multiSelectedIds: [],
   isDragging: false,
   editingId: null,
   past: [],
@@ -43,6 +44,7 @@ const canvasSlice = createSlice({
       };
       state.order.push(comp.id);
       state.selectedId = comp.id;
+      state.multiSelectedIds = [comp.id]; // Select the new component
     },
 
     updateComponent: (state, action: PayloadAction<{ id: string; updates: Partial<CanvasComponent> }>) => {
@@ -64,18 +66,59 @@ const canvasSlice = createSlice({
     moveComponent: (state, action: PayloadAction<{ id: string; x: number; y: number }>) => {
       pushToHistory(state);
       const { id, x, y } = action.payload;
-      if (state.components[id]) {
-        state.components[id].x = x;
-        state.components[id].y = y;
+      const target = state.components[id];
+      if (target) {
+        const dx = x - target.x;
+        const dy = y - target.y;
+
+        // If the dragged component is part of the multi-selection group, move all of them
+        if (state.multiSelectedIds.includes(id)) {
+          state.multiSelectedIds.forEach((selectedId) => {
+            const comp = state.components[selectedId];
+            if (comp) {
+              comp.x += dx;
+              comp.y += dy;
+            }
+          });
+        } else {
+          // If not selected, move only the target and set it as selected
+          target.x = x;
+          target.y = y;
+          state.selectedId = id;
+          state.multiSelectedIds = [id];
+        }
+      }
+    },
+
+    dragComponent: (state, action: PayloadAction<{ id: string; x: number; y: number }>) => {
+      const { id, x, y } = action.payload;
+      const target = state.components[id];
+      if (target) {
+        const dx = x - target.x;
+        const dy = y - target.y;
+
+        if (state.multiSelectedIds.includes(id)) {
+          state.multiSelectedIds.forEach((selectedId) => {
+            const comp = state.components[selectedId];
+            if (comp) {
+              comp.x += dx;
+              comp.y += dy;
+            }
+          });
+        } else {
+          target.x = x;
+          target.y = y;
+        }
       }
     },
 
     loadComponents: (state, action: PayloadAction<CanvasComponent[]>) => {
-      // For loadComponents, we reset history to keep it clean for a new screen
       state.past = [];
       state.future = [];
       state.components = {};
       state.order = [];
+      state.selectedId = null;
+      state.multiSelectedIds = [];
       action.payload.forEach((comp) => {
         state.components[comp.id] = {
           ...comp,
@@ -91,9 +134,36 @@ const canvasSlice = createSlice({
       state.order = action.payload;
     },
 
-    selectComponent: (state, action: PayloadAction<string | null>) => {
-      if (state.selectedId !== action.payload) {
-        state.selectedId = action.payload;
+    selectComponent: (
+      state,
+      action: PayloadAction<string | null | { id: string | null; isMultiSelect?: boolean }>
+    ) => {
+      const payload = action.payload;
+      let targetId: string | null = null;
+      let isMultiSelect = false;
+
+      if (payload && typeof payload === "object") {
+        targetId = payload.id;
+        isMultiSelect = !!payload.isMultiSelect;
+      } else {
+        targetId = payload;
+      }
+
+      if (isMultiSelect && targetId) {
+        if (state.multiSelectedIds.includes(targetId)) {
+          // Remove if already selected
+          state.multiSelectedIds = state.multiSelectedIds.filter((id) => id !== targetId);
+          state.selectedId = state.multiSelectedIds[state.multiSelectedIds.length - 1] || null;
+        } else {
+          // Add to selection
+          state.multiSelectedIds.push(targetId);
+          state.selectedId = targetId;
+        }
+        state.editingId = null;
+      } else {
+        // Single selection
+        state.selectedId = targetId;
+        state.multiSelectedIds = targetId ? [targetId] : [];
         state.editingId = null;
       }
     },
@@ -107,6 +177,7 @@ const canvasSlice = createSlice({
       delete state.components[action.payload];
       state.order = state.order.filter((id) => id !== action.payload);
       if (state.selectedId === action.payload) state.selectedId = null;
+      state.multiSelectedIds = state.multiSelectedIds.filter((id) => id !== action.payload);
     },
 
     setDragging: (state, action: PayloadAction<boolean>) => {
@@ -118,6 +189,7 @@ const canvasSlice = createSlice({
       state.components = {};
       state.order = [];
       state.selectedId = null;
+      state.multiSelectedIds = [];
     },
 
     undo: (state) => {
@@ -166,6 +238,7 @@ export const {
   setEditingId,
   setDragging,
   moveComponent,
+  dragComponent,
   clearCanvas,
   loadComponents,
   updateOrder,

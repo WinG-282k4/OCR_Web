@@ -172,9 +172,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse Nanonets response and convert to our format
-    const detectedComponents = [];
+    const detectedComponents: any[] = [];
 
-    if (nanonetsData.result && nanonetsData.result.length > 0) {
+    if (nanonetsData && nanonetsData.result && nanonetsData.result.length > 0) {
       nanonetsData.result[0].prediction.forEach((prediction) => {
         const bbox = prediction.bounding_box;
         const width = Math.abs(bbox.right - bbox.left);

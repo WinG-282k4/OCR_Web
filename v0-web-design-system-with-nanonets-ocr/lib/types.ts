@@ -50,6 +50,7 @@ export interface CanvasState {
   components: Record<string, CanvasComponent>;
   order: string[];
   selectedId: string | null;
+  multiSelectedIds: string[];
   isDragging: boolean;
   editingId: string | null;
   past: Array<{ components: Record<string, CanvasComponent>; order: string[] }>;

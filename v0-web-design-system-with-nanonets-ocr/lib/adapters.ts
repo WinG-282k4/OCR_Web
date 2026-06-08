@@ -61,7 +61,7 @@ export function beComponentToFe(comp: BEComponent): CanvasComponent {
 /**
  * Convert entire BE screen → Redux CanvasState
  */
-export function beScreenToCanvasState(screen: BEScreen): Omit<CanvasState, 'selectedId' | 'isDragging'> {
+export function beScreenToCanvasState(screen: BEScreen): Pick<CanvasState, 'components' | 'order'> {
   const components: Record<string, CanvasComponent> = {};
   const order: string[] = [];
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Rnd } from "react-rnd";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { selectComponent, moveComponent, updateComponentStyle, updateComponent, setEditingId } from "@/store/slices/canvasSlice";
+import { selectComponent, moveComponent, dragComponent, updateComponentStyle, updateComponent, setEditingId } from "@/store/slices/canvasSlice";
 import { CanvasComponent } from "@/lib/types";
 
 interface Props {
@@ -13,8 +13,10 @@ interface Props {
 export default function CanvasElement({ component, isSelected }: Props) {
   const dispatch = useAppDispatch();
   const { id, type, content, label, placeholder, x, y, style, attributes } = component;
-  const { editingId } = useAppSelector((state) => state.canvas);
+  const { editingId, multiSelectedIds = [] } = useAppSelector((state) => state.canvas);
   
+  const isMultiSelected = multiSelectedIds.includes(id);
+  const isHighlighted = isSelected || isMultiSelected;
   const isEditing = editingId === id;
   const setIsEditing = (val: boolean) => {
     dispatch(setEditingId(val ? id : null));
@@ -395,9 +397,16 @@ export default function CanvasElement({ component, isSelected }: Props) {
       position={{ x, y }}
       size={{ width, height }}
       disableDragging={isEditing}
-      onDragStart={() => { dispatch(selectComponent(id)); }}
+      onDragStart={() => {
+        if (!multiSelectedIds.includes(id)) {
+          dispatch(selectComponent(id));
+        }
+      }}
       onDragStop={(e, d) => {
         dispatch(moveComponent({ id, x: d.x, y: d.y }));
+      }}
+      onDrag={(e, d) => {
+        dispatch(dragComponent({ id, x: d.x, y: d.y }));
       }}
       onResizeStop={(e, direction, ref, delta, position) => {
         dispatch(moveComponent({ id, x: position.x, y: position.y }));
@@ -407,16 +416,17 @@ export default function CanvasElement({ component, isSelected }: Props) {
         }));
       }}
       bounds="parent"
-      className={`${isSelected ? "ring-2 ring-indigo-500 shadow-xl" : "hover:ring-1 hover:ring-indigo-300"} group`}
+      className={`${isHighlighted ? (isSelected ? "ring-2 ring-indigo-500 shadow-xl" : "ring-2 ring-indigo-400/70 shadow-lg") : "hover:ring-1 hover:ring-indigo-300"} group`}
       dragHandleClassName="drag-handle"
-      style={{ zIndex: isSelected ? 9999 : (style.zIndex ? parseInt(style.zIndex, 10) : 1) }}
+      style={{ zIndex: isHighlighted ? 9999 : (style.zIndex ? parseInt(style.zIndex, 10) : 1) }}
     >
       <div 
         className={`w-full h-full ${isEditing ? "cursor-text" : "drag-handle cursor-grab active:cursor-grabbing"}`}
         style={innerStyle}
         onClick={(e) => {
           e.stopPropagation();
-          dispatch(selectComponent(id));
+          const isMulti = e.shiftKey || e.ctrlKey || e.metaKey;
+          dispatch(selectComponent({ id, isMultiSelect: isMulti }));
         }}
         onDoubleClick={(e) => {
           if (type === "table") {

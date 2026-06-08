@@ -1,9 +1,13 @@
 "use client";
 
 import React from "react";
-import { useAppDispatch } from "@/store/hooks";
+import { createPortal } from "react-dom";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addComponent } from "@/store/slices/canvasSlice";
 import { CanvasComponent, ComponentType } from "@/lib/types";
+import { ocrAPI } from "@/lib/api-client";
+import { htmlToCanvasComponents } from "@/lib/htmlParser";
+import ImageCropperModal from "./ImageCropperModal";
 import {
   Type,
   Image,
@@ -16,6 +20,9 @@ import {
   Zap,
   Copy,
   Table,
+  Loader2,
+  Sparkles,
+  UploadCloud,
 } from "lucide-react";
 
 interface ComponentConfig {
@@ -177,6 +184,16 @@ const components: ComponentConfig[] = [
 
 export default function ComponentPalette() {
   const dispatch = useAppDispatch();
+  const { currentProjectId } = useAppSelector((state) => state.session);
+  const [aiLoading, setAiLoading] = React.useState(false);
+  const [aiError, setAiError] = React.useState<string | null>(null);
+  const [cropperSrc, setCropperSrc] = React.useState<string | null>(null);
+  const [cropperFileName, setCropperFileName] = React.useState<string>("");
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleAddComponent = (config: ComponentConfig) => {
     const newComponent: CanvasComponent = {
@@ -211,11 +228,113 @@ export default function ComponentPalette() {
         `.trim()
       } : {},
       children: [],
+      events: { onClick: "none" },
       x: 50 + Math.random() * 100,
       y: 50 + Math.random() * 100,
     };
 
     dispatch(addComponent(newComponent));
+  };
+
+  const handleAIComponentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!currentProjectId) {
+      setAiError("Vui lòng chọn một dự án trước khi sử dụng OCR AI.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setCropperSrc(event.target.result as string);
+        setCropperFileName(file.name);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleCropConfirm = async (croppedFile: File) => {
+    setCropperSrc(null);
+    setAiLoading(true);
+    setAiError(null);
+
+    try {
+      const res = await ocrAPI.upload(currentProjectId!, croppedFile, cropperFileName, 0.7, false);
+      const detected = res.ocr_analysis.detected_components;
+      const rawHtml = detected?.raw_response?.html || 
+                      detected?.normalized_components?.[0]?.properties?.html_content;
+
+      let parsedComponents: CanvasComponent[] = [];
+
+      if (rawHtml) {
+        // Trường hợp 1: Có dữ liệu HTML, parse thông thường
+        parsedComponents = await htmlToCanvasComponents(rawHtml);
+      } else if (detected?.normalized_components && detected.normalized_components.length > 0) {
+        // Trường hợp 2: Trực tiếp lấy danh sách component được cấu trúc (Ví dụ: khi dùng Fallback/Nanonets)
+        const beComponents = detected.normalized_components;
+        parsedComponents = beComponents.map((comp: any, index: number) => ({
+          id: comp.id || `ocr-${index}-${Date.now()}`,
+          type: (comp.type as CanvasComponent["type"]) || "container",
+          label: comp.properties?.text || comp.type || "ocr",
+          content: comp.properties?.text || comp.properties?.content,
+          placeholder: comp.properties?.placeholder,
+          x: comp.position?.x ?? 0,
+          y: comp.position?.y ?? 0,
+          style: {
+            width: comp.size?.width ? `${comp.size.width}px` : "100px",
+            height: comp.size?.height ? `${comp.size.height}px` : "40px",
+            position: "absolute",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#f3f4f6",
+            borderRadius: "4px",
+            border: "1px solid #d1d5db",
+            ...comp.style,
+          },
+          attributes: {
+            src: comp.properties?.src,
+            alt: comp.properties?.alt,
+            href: comp.properties?.href,
+            variant: comp.properties?.variant,
+            html: comp.properties?.html_content || comp.properties?.html,
+          },
+          events: { onClick: "none" },
+          children: [],
+        }));
+      }
+
+      if (parsedComponents.length === 0) {
+        throw new Error("Không thể trích xuất HTML hoặc danh sách component từ kết quả OCR.");
+      }
+
+      let minX = Infinity;
+      let minY = Infinity;
+      parsedComponents.forEach((c) => {
+        if (c.x < minX) minX = c.x;
+        if (c.y < minY) minY = c.y;
+      });
+
+      const offsetX = 100 - (minX === Infinity ? 0 : minX);
+      const offsetY = 100 - (minY === Infinity ? 0 : minY);
+
+      parsedComponents.forEach((c) => {
+        dispatch(
+          addComponent({
+            ...c,
+            x: c.x + offsetX,
+            y: c.y + offsetY,
+          })
+        );
+      });
+    } catch (err: any) {
+      setAiError(err.message || "Lỗi xử lý OCR AI.");
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -228,9 +347,40 @@ export default function ComponentPalette() {
         </p>
       </div>
 
-      {/* Upload design image to create component */}
-      <div className="px-4 py-3 border-b border-white/5 bg-white/5">
-        <div className="relative flex flex-col items-center justify-center border border-dashed border-white/10 hover:border-indigo-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-indigo-600/5 group">
+      {/* Upload Zone Section */}
+      <div className="px-4 py-3 border-b border-white/5 bg-white/5 flex flex-col gap-2.5">
+        {/* Detect Component (AI) */}
+        <div className="relative flex flex-col items-center justify-center border border-dashed border-indigo-500/20 hover:border-indigo-500/60 rounded-xl p-4 cursor-pointer transition-all hover:bg-indigo-600/5 group">
+          <input
+            type="file"
+            accept="image/*"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            onChange={handleAIComponentUpload}
+            disabled={aiLoading}
+          />
+          {aiLoading ? (
+            <>
+              <Loader2 size={24} className="text-indigo-400 animate-spin mb-1.5" />
+              <span className="text-xs font-semibold text-indigo-300">Đang phân tách UI...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles size={24} className="text-indigo-400 group-hover:text-indigo-300 mb-1.5 transition-colors" />
+              <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition-colors">Nhận diện Component (AI)</span>
+              <span className="text-[10px] text-slate-500 text-center mt-0.5">Tự động dựng code từ ảnh chụp</span>
+            </>
+          )}
+        </div>
+
+        {/* Error message */}
+        {aiError && (
+          <div className="text-[10px] text-red-400 px-2 py-1 bg-red-950/30 border border-red-500/20 rounded-lg">
+            {aiError}
+          </div>
+        )}
+
+        {/* Upload design image to create component */}
+        <div className="relative flex flex-col items-center justify-center border border-dashed border-white/10 hover:border-indigo-500/50 rounded-xl p-3 cursor-pointer transition-all hover:bg-white/5 group">
           <input
             type="file"
             accept="image/*"
@@ -257,6 +407,7 @@ export default function ComponentPalette() {
                         alt: file.name,
                       },
                       children: [],
+                      events: { onClick: "none" },
                       x: 100 + Math.random() * 100,
                       y: 100 + Math.random() * 100,
                     };
@@ -267,9 +418,8 @@ export default function ComponentPalette() {
               }
             }}
           />
-          <Image size={24} className="text-slate-400 group-hover:text-indigo-400 mb-1.5 transition-colors" />
-          <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition-colors">Tải lên ảnh thiết kế</span>
-          <span className="text-[10px] text-slate-500 text-center mt-0.5">Tạo nhanh component ảnh</span>
+          <Image size={20} className="text-slate-400 group-hover:text-indigo-400 mb-1 transition-colors" />
+          <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white transition-colors">Tải lên ảnh tĩnh</span>
         </div>
       </div>
 
@@ -292,6 +442,17 @@ export default function ComponentPalette() {
           ))}
         </div>
       </div>
+
+      {/* Image Cropper Modal */}
+      {mounted && cropperSrc && createPortal(
+        <ImageCropperModal
+          imageSrc={cropperSrc}
+          fileName={cropperFileName}
+          onCropConfirm={handleCropConfirm}
+          onClose={() => setCropperSrc(null)}
+        />,
+        document.body
+      )}
     </div>
   );
 }

@@ -274,16 +274,17 @@ export const ocrAPI = {
     projectId: string,
     imageFile: File,
     screenName?: string,
-    confidence = 0.7
+    confidence = 0.7,
+    autoCreateScreen = true
   ) => {
     const formData = new FormData();
     formData.append('image', imageFile);
     formData.append('confidence_threshold', confidence.toString());
     if (screenName) formData.append('screen_name', screenName);
-    formData.append('auto_create_screen', 'true');
+    formData.append('auto_create_screen', autoCreateScreen ? 'true' : 'false');
 
     return apiFetch<{
-      ocr_analysis: { id: string; status: string };
+      ocr_analysis: { id: string; status: string; detected_components?: any };
       screen?: { id: string; name: string };
       message: string;
     }>(
