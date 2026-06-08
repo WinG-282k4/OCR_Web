@@ -142,7 +142,7 @@ export default function LandingPage() {
               <div>
                 <h3 className="text-xl font-semibold text-white mb-2">AI Analyzes & Creates Components</h3>
                 <p className="text-slate-400">
-                  Our OCR system detects UI elements and generates drag-droppable components on the canvas.
+                  Our system detects UI elements and generates drag-droppable components on the canvas.
                 </p>
               </div>
             </div>

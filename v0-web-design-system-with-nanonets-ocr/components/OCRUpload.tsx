@@ -23,7 +23,7 @@ export default function OCRUpload() {
     if (!file) return;
 
     if (!currentProjectId) {
-      dispatch(setOCRError("Vui lòng chọn một dự án trước khi upload ảnh OCR."));
+      dispatch(setOCRError("Vui lòng chọn một dự án trước khi upload ảnh."));
       return;
     }
 
@@ -109,7 +109,7 @@ export default function OCRUpload() {
         <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <AlertCircle size={18} className="text-amber-600 flex-shrink-0" />
           <p className="text-sm text-amber-700">
-            Chưa có dự án nào được chọn. OCR sẽ không hoạt động.
+            Chưa có dự án nào được chọn. AI sẽ không hoạt động.
           </p>
         </div>
       )}
@@ -123,7 +123,7 @@ export default function OCRUpload() {
         {ocrLoading ? (
           <>
             <Loader2 size={18} className="animate-spin" />
-            Đang xử lý OCR...
+            Đang xử lý...
           </>
         ) : (
           <>
@@ -148,7 +148,7 @@ export default function OCRUpload() {
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <CheckCircle2 size={18} className="text-green-600" />
           <p className="text-sm text-green-700">
-            OCR hoàn tất! Các component đã được thêm vào canvas.
+            Hoàn tất! Các component đã được thêm vào canvas.
           </p>
         </div>
       )}

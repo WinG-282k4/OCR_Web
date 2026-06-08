@@ -111,7 +111,7 @@ export default function ProjectDetailPage() {
           return;
         }
       } catch (e) {
-        console.error('Lỗi tự động phân tích OCR HTML:', e);
+        console.error('Lỗi tự động phân tích HTML:', e);
       }
     }
 
@@ -263,7 +263,7 @@ export default function ProjectDetailPage() {
     try {
       const screenName = file.name.replace(/\.[^.]+$/, '');
       const res = await ocrAPI.upload(projectId, file, screenName);
-      setOcrProgress('OCR đang xử lý...');
+      setOcrProgress('Đang xử lý...');
 
       // If screen was auto-created, reload screens
       if (res.screen) {
@@ -279,7 +279,7 @@ export default function ProjectDetailPage() {
         setTimeout(() => setOcrProgress(''), 3000);
       }
     } catch (e: any) {
-      setError(e.message || 'OCR thất bại');
+      setError(e.message || 'Thất bại');
     } finally {
       setOcrUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -365,7 +365,7 @@ export default function ProjectDetailPage() {
                 <Upload className="w-3.5 h-3.5" />
               )}
               <span className="hidden sm:inline">
-                {ocrUploading ? (ocrProgress || 'Đang xử lý...') : 'Upload OCR'}
+                {ocrUploading ? (ocrProgress || 'Đang xử lý...') : 'Upload Image'}
               </span>
             </button>
 

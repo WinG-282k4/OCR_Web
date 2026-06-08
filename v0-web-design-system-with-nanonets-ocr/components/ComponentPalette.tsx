@@ -241,7 +241,7 @@ export default function ComponentPalette() {
     if (!file) return;
 
     if (!currentProjectId) {
-      setAiError("Vui lòng chọn một dự án trước khi sử dụng OCR AI.");
+      setAiError("Vui lòng chọn một dự án trước khi sử dụng AI.");
       return;
     }
 
@@ -308,7 +308,7 @@ export default function ComponentPalette() {
       }
 
       if (parsedComponents.length === 0) {
-        throw new Error("Không thể trích xuất HTML hoặc danh sách component từ kết quả OCR.");
+        throw new Error("Không thể trích xuất HTML hoặc danh sách component từ kết quả AI.");
       }
 
       let minX = Infinity;
@@ -331,7 +331,7 @@ export default function ComponentPalette() {
         );
       });
     } catch (err: any) {
-      setAiError(err.message || "Lỗi xử lý OCR AI.");
+      setAiError(err.message || "Lỗi xử lý AI.");
     } finally {
       setAiLoading(false);
     }

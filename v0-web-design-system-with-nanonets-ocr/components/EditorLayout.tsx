@@ -384,7 +384,7 @@ export default function EditorLayout() {
           </div>
           <div className="text-xs text-slate-500">
             {mode === "design"
-              ? "Use Nanonets OCR to auto-detect components or manually add from palette"
+              ? "Use AI to auto-detect components or manually add from palette"
               : "Download your HTML or copy code to clipboard"}
           </div>
         </div>
