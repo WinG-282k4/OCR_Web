@@ -53,13 +53,29 @@ class OCRUploadSerializer(serializers.Serializer):
         if value.size > max_size:
             raise serializers.ValidationError("Image file too large. Maximum size is 10MB")
         
-        # Check image format
-        allowed_formats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-        if value.content_type not in allowed_formats:
+        # Check image format (robust check using mime-types and file extensions)
+        import os
+        allowed_formats = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+            'image/x-png', 'image/pjpeg', 'application/octet-stream'
+        ]
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+        
+        ext = os.path.splitext(value.name)[1].lower()
+        
+        # If content_type is not in allowed formats, or if it is generic application/octet-stream,
+        # we check the file extension to be sure.
+        if value.content_type not in allowed_formats and ext not in allowed_extensions:
             raise serializers.ValidationError(
-                f"Invalid image format. Allowed formats: {', '.join(allowed_formats)}"
+                f"Invalid image format (received: {value.content_type}). Allowed formats: jpeg, jpg, png, webp"
             )
         
+        # Double check extension for security
+        if ext not in allowed_extensions:
+            raise serializers.ValidationError(
+                f"Invalid file extension. Allowed extensions: {', '.join(allowed_extensions)}"
+            )
+            
         return value
     
     def validate(self, attrs):

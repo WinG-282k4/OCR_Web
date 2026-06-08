@@ -67,7 +67,7 @@ export default function ProjectDetailPage() {
     dispatch(setCurrentScreen(screen));
 
     const storedHTML = extractHTMLContent(screen);
-
+    // Test thì bỏ ở đây
     if (storedHTML) {
       try {
         const parsed = await htmlToCanvasComponents(storedHTML);
@@ -114,7 +114,7 @@ export default function ProjectDetailPage() {
         console.error('Lỗi tự động phân tích HTML:', e);
       }
     }
-
+    //Đén đây
     // Standard flow for normal screens:
     const { components, order } = beScreenToCanvasState(screen);
     dispatch(loadComponents(Object.values(components)));
@@ -351,7 +351,7 @@ export default function ProjectDetailPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/jpg"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
               className="hidden"
               onChange={handleOCRUpload}
             />
@@ -562,8 +562,8 @@ function ScreenCard({
   return (
     <div
       className={`relative group rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden ${isSelected
-          ? 'border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-600/10'
-          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+        ? 'border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-600/10'
+        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
         }`}
       onClick={onClick}
     >
