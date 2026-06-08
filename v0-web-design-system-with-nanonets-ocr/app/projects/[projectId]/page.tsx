@@ -66,8 +66,8 @@ export default function ProjectDetailPage() {
   async function selectScreen(screen: BEScreen) {
     dispatch(setCurrentScreen(screen));
 
-    // Neu screen co html_content (tu OCR), parse no ra cac component granular
     const storedHTML = extractHTMLContent(screen);
+
     if (storedHTML) {
       try {
         const parsed = await htmlToCanvasComponents(storedHTML);
@@ -89,7 +89,7 @@ export default function ProjectDetailPage() {
 
           dispatch(setCurrentScreen(upgradedScreen));
           dispatch(loadComponents(parsed));
-          
+
           // Regenerate clean HTML from the newly upgraded canvas state
           const { components: regeneratedComps, order: regeneratedOrder } = beScreenToCanvasState(upgradedScreen);
           regenerateHTML(regeneratedComps, regeneratedOrder);
@@ -190,6 +190,7 @@ export default function ProjectDetailPage() {
       dispatch(savingSuccess());
       // Update the screen in list with updated component_count etc.
       if (res.screen) {
+        dispatch(setCurrentScreen(res.screen));
         const idx = screens.findIndex((s) => s.id === currentScreen.id);
         if (idx !== -1) {
           const updated = screens.map((s) =>
@@ -552,19 +553,18 @@ function ScreenCard({
     ? screen.thumbnail.startsWith('http')
       ? screen.thumbnail
       : (() => {
-          const path = screen.thumbnail.startsWith('/') ? screen.thumbnail : `/${screen.thumbnail}`;
-          const finalPath = path.startsWith('/media/') ? path : `/media${path}`;
-          return `${API_ORIGIN}${finalPath}`;
-        })()
+        const path = screen.thumbnail.startsWith('/') ? screen.thumbnail : `/${screen.thumbnail}`;
+        const finalPath = path.startsWith('/media/') ? path : `/media${path}`;
+        return `${API_ORIGIN}${finalPath}`;
+      })()
     : null;
 
   return (
     <div
-      className={`relative group rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden ${
-        isSelected
+      className={`relative group rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden ${isSelected
           ? 'border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-600/10'
           : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
-      }`}
+        }`}
       onClick={onClick}
     >
       {/* Screen preview: dùng thumbnail nếu có, fallback về gradient */}
@@ -660,25 +660,22 @@ function ScreenEditPanel({
         <div className="flex items-center bg-white/5 rounded-lg p-0.5">
           <button
             onClick={() => onViewModeChange('design')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
-              viewMode === 'design' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${viewMode === 'design' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+              }`}
           >
             <PenTool className="w-3.5 h-3.5" /> Design
           </button>
           <button
             onClick={() => onViewModeChange('preview')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
-              viewMode === 'preview' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${viewMode === 'preview' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+              }`}
           >
             <Eye className="w-3.5 h-3.5" /> Preview
           </button>
           <button
             onClick={() => onViewModeChange('html')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
-              viewMode === 'html' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${viewMode === 'html' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'
+              }`}
           >
             <Code2 className="w-3.5 h-3.5" /> HTML
           </button>

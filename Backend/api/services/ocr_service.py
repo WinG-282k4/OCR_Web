@@ -32,11 +32,15 @@ class OCRService:
             ocr_analysis.save()
             
             api_url = "https://elevate-repeated-ragged.ngrok-free.dev/generate"
+            headers = {
+                "ngrok-skip-browser-warning": "any_value"
+            }
             
             # Post request to Qwen generator
             with open(ocr_analysis.image.path, 'rb') as image_file:
                 response = requests.post(
                     api_url,
+                    headers=headers,
                     files={'file': image_file},
                     timeout=300  # Generating full UI and embedding images can take some time
                 )
