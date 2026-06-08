@@ -133,7 +133,7 @@ export default function LoginPage() {
         {/* Feature cards */}
         <div className="relative z-10 space-y-4">
           {[
-            { icon: '🤖', title: 'AI OCR Detection', desc: 'Tự động phát hiện UI components từ ảnh' },
+            { icon: '🤖', title: 'AI Detection', desc: 'Tự động phát hiện UI components từ ảnh' },
             { icon: '✏️', title: 'Visual Editor', desc: 'Chỉnh sửa trực quan, xem kết quả ngay lập tức' },
             { icon: '📦', title: 'TailwindCSS Export', desc: 'Export HTML chuẩn với Tailwind classes' },
           ].map((f) => (

@@ -593,7 +593,7 @@ function ScreenCard({
         )}
         {screen.created_from_ocr && (
           <div className="absolute top-2 left-2 bg-violet-600/80 text-white text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-1">
-            <Layers className="w-2.5 h-2.5" /> OCR
+            <Layers className="w-2.5 h-2.5" /> AI
           </div>
         )}
       </div>
