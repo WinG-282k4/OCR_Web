@@ -49,6 +49,8 @@ export function beComponentToFe(comp: BEComponent): CanvasComponent {
       })(),
       alt: properties.alt,
       href: properties.href,
+      target: properties.target,
+      _isAnchor: properties._isAnchor,
       variant: properties.variant,
       html_content: properties.html_content,
     },
@@ -106,6 +108,8 @@ export function feComponentToBe(comp: CanvasComponent): BEComponent {
       src: comp.attributes?.src || '',
       alt: comp.attributes?.alt || '',
       href: comp.attributes?.href || '',
+      target: comp.attributes?.target || '',
+      _isAnchor: comp.attributes?._isAnchor,
       html_content: comp.attributes?.html_content,
     },
     style: Object.fromEntries(

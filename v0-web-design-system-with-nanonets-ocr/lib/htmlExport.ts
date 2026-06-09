@@ -34,12 +34,24 @@ function componentToHtml(
   const textToDisplay = content || label || type;
 
   switch (type) {
-    case 'button':
+    case 'button': {
+      const href = attributes?.href;
+      const isAnchor = attributes?._isAnchor === 'true' || (href !== undefined && href !== '');
+      if (isAnchor) {
+        return `<a 
+        href="${href || '#'}"
+        target="${attributes?.target || '_self'}"
+        class="w-full h-full cursor-pointer flex items-center justify-center" 
+        style="background-color: ${style.backgroundColor || '#2563eb'}; color: ${style.color || '#ffffff'}; border-radius: ${style.borderRadius || '0.25rem'}; font-size: ${style.fontSize || 'inherit'}; font-weight: ${style.fontWeight || 'normal'}; border: ${style.border || 'none'}; box-shadow: ${style.boxShadow || 'none'}; line-height: ${style.lineHeight || 'normal'}; letter-spacing: ${style.letterSpacing || 'normal'}; text-align: ${style.textAlign || 'center'}; font-family: ${style.fontFamily || 'inherit'}; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+        ${textToDisplay}
+      </a>`;
+      }
       return `<button 
         class="w-full h-full cursor-pointer flex items-center justify-center" 
         style="background-color: ${style.backgroundColor || '#2563eb'}; color: ${style.color || '#ffffff'}; border-radius: ${style.borderRadius || '0.25rem'}; font-size: ${style.fontSize || 'inherit'}; font-weight: ${style.fontWeight || 'normal'}; border: ${style.border || 'none'}; box-shadow: ${style.boxShadow || 'none'}; line-height: ${style.lineHeight || 'normal'}; letter-spacing: ${style.letterSpacing || 'normal'}; text-align: ${style.textAlign || 'center'}; font-family: ${style.fontFamily || 'inherit'};">
         ${textToDisplay}
       </button>`;
+    }
 
     case 'input':
       return `<input 
@@ -87,8 +99,8 @@ function componentToHtml(
       return `<a 
         href="${attributes?.href || '#'}" 
         target="${attributes?.target || '_self'}"
-        class="text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors w-full"
-        style="font-size: ${style.fontSize || 'inherit'}; font-weight: ${style.fontWeight || 'normal'}; font-family: ${style.fontFamily || 'inherit'}; color: ${style.color || 'inherit'}; text-align: ${style.textAlign || 'left'};">
+        class="transition-colors w-full"
+        style="font-size: ${style.fontSize || 'inherit'}; font-weight: ${style.fontWeight || 'normal'}; font-family: ${style.fontFamily || 'inherit'}; color: ${style.color || 'inherit'}; text-align: ${style.textAlign || 'left'}; text-decoration: none;">
         ${textToDisplay}
       </a>`;
 
@@ -150,8 +162,15 @@ export function generateTailwindHTML(
     }
   });
 
-  const bodyContent = order
-    .filter((id) => components[id] && !childIds.has(id))
+  // Tính chiều cao cần thiết dựa trên vị trí + kích thước thấp nhất của component
+  const topLevelIds = order.filter((id) => components[id] && !childIds.has(id));
+  const requiredHeight = topLevelIds.reduce((maxH, id) => {
+    const comp = components[id];
+    const compH = comp.style.height ? parseInt(comp.style.height, 10) : 40;
+    return Math.max(maxH, comp.y + compH + 60);
+  }, 900);
+
+  const bodyContent = topLevelIds
     .map((id) => {
       const comp = components[id];
       const w = comp.style.width || '120px';
@@ -207,17 +226,17 @@ export function generateTailwindHTML(
     }
     body {
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      min-width: 1520px; /* Force minimum width to trigger horizontal scrollbars on small viewports */
+      min-width: 1520px;
     }
     .canvas-wrapper {
       position: relative;
       width: 1440px;
-      height: 900px;
+      height: ${requiredHeight}px;
       background-color: #ffffff;
       margin: 40px auto;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
       border: 1px solid #e2e8f0;
-      overflow: hidden;
+      overflow: visible;
     }
   </style>
 </head>

@@ -31,7 +31,7 @@ class OCRService:
             ocr_analysis.status = 'processing'
             ocr_analysis.save()
             
-            api_url = "https://elevate-repeated-ragged.ngrok-free.dev/generate"
+            api_url = "https://3af7-34-42-168-191.ngrok-free.app/generate"
             headers = {
                 "ngrok-skip-browser-warning": "any_value"
             }

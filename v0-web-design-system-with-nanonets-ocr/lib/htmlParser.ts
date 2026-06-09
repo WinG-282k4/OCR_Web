@@ -229,11 +229,31 @@ export async function htmlToCanvasComponents(html: string): Promise<CanvasCompon
                 placeholder = el.getAttribute('placeholder') || '';
                 label = placeholder || el.getAttribute('type') || 'input';
                 content = '';
-              } else if (tag === 'button' || tag === 'a' || computed.cursor === 'pointer' || el.getAttribute('role') === 'button') {
-                type = 'button';
-                if (tag === 'a') {
-                  attributes = { href: el.getAttribute('href') || '#' };
+              } else if (tag === 'a') {
+                // <a> tag: kiểm tra nếu trông giống button (có background thật) thì là button, còn lại là link
+                const aBg = computed.backgroundColor;
+                const hasRealBg = aBg && aBg !== 'rgba(0, 0, 0, 0)' && aBg !== 'transparent'
+                  && rgbToHex(aBg) !== '#ffffff' && rgbToHex(aBg) !== '';
+                const cls = el.className || '';
+                // có bg-* class (kể cả hover:bg-*) hoặc btn/button class thì là button
+                const hasButtonClass = cls.includes('btn') || cls.includes('button')
+                  || (cls.includes('bg-') && !cls.includes('bg-transparent'));
+                if (hasRealBg || hasButtonClass) {
+                  type = 'button';
+                  attributes = {
+                    href: el.getAttribute('href') || '#',
+                    target: el.getAttribute('target') || '_self',
+                    _isAnchor: 'true',
+                  };
+                } else {
+                  type = 'link';
+                  attributes = {
+                    href: el.getAttribute('href') || '#',
+                    target: el.getAttribute('target') || '_self',
+                  };
                 }
+              } else if (tag === 'button' || computed.cursor === 'pointer' || el.getAttribute('role') === 'button') {
+                type = 'button';
               } else if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
                 type = 'heading';
               } else if (textContent && el.children.length === 0) {
@@ -264,7 +284,7 @@ export async function htmlToCanvasComponents(html: string): Promise<CanvasCompon
                 }
 
                 // Common typography styles for text-containing elements
-                if (['heading', 'text', 'button', 'input'].includes(type)) {
+                if (['heading', 'text', 'button', 'link', 'input'].includes(type)) {
                   canvasStyle.fontSize = computed.fontSize;
                   canvasStyle.fontWeight = computed.fontWeight;
                   canvasStyle.color = rgbToHex(computed.color) || '#1f2937';
@@ -552,7 +572,10 @@ function fallbackParser(html: string): CanvasComponent[] {
                 color: textColor(link) || '#ffffff',
                 borderRadius: '4px',
               },
-              attributes: { href: link.getAttribute('href') || '#' },
+              attributes: {
+                href: link.getAttribute('href') || '#',
+                target: link.getAttribute('target') || '_self',
+              },
               events: { onClick: 'none' },
             });
             startX += btnW + gap;
@@ -580,7 +603,10 @@ function fallbackParser(html: string): CanvasComponent[] {
             color: textColor(child) || '#ffffff',
             borderRadius: '4px',
           },
-          attributes: { href: child.getAttribute('href') || '#' },
+          attributes: {
+            href: child.getAttribute('href') || '#',
+            target: child.getAttribute('target') || '_self',
+          },
           events: { onClick: 'none' },
         };
         components.push(comp);

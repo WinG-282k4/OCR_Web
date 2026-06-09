@@ -26,7 +26,7 @@ export default function CanvasElement({ component, isSelected }: Props) {
   const width = style.width ? parseInt(style.width, 10) : 120;
   const height = style.height ? parseInt(style.height, 10) : 40;
 
-  const isLeaf = ["button", "input", "textarea", "image"].includes(type);
+  const isLeaf = ["button", "input", "textarea", "image", "link"].includes(type);
 
   const innerStyle: React.CSSProperties = {
     width: "100%",
@@ -531,6 +531,30 @@ export default function CanvasElement({ component, isSelected }: Props) {
           >
             {textToDisplay}
           </h2>
+        )}
+
+        {type === "link" && (
+          <a 
+            href={attributes?.href || '#'}
+            target={attributes?.target || '_self'}
+            className="w-full h-full flex items-center"
+            style={{ 
+              fontSize: style.fontSize || "14px",
+              fontWeight: style.fontWeight || undefined,
+              fontFamily: style.fontFamily || undefined,
+              color: style.color || "#2563eb",
+              textAlign: style.textAlign as any || "left",
+              lineHeight: style.lineHeight || undefined,
+              letterSpacing: style.letterSpacing || undefined,
+              textDecoration: "none",
+              cursor: "pointer",
+              borderBottom: `1.5px solid ${style.color || '#2563eb'}40`,
+              paddingBottom: "1px",
+            }}
+            onClick={(e) => e.preventDefault()}
+          >
+            {textToDisplay}
+          </a>
         )}
 
         {type === "text" && (
