@@ -31,9 +31,10 @@ class OCRService:
             ocr_analysis.status = 'processing'
             ocr_analysis.save()
             
-            api_url = "https://3af7-34-42-168-191.ngrok-free.app/generate"
+            api_url = "https://8b67-34-48-116-15.ngrok-free.app/generate"
             headers = {
-                "ngrok-skip-browser-warning": "any_value"
+                "ngrok-skip-browser-warning": "true",
+                "User-Agent": "OCRService/1.0 (Django Backend)",
             }
             
             # Post request to Qwen generator
